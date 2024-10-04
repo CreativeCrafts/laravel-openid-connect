@@ -2,9 +2,9 @@
 
 namespace CreativeCrafts\LaravelOpenidConnect\Tests;
 
+use CreativeCrafts\LaravelOpenidConnect\LaravelOpenidConnectServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use CreativeCrafts\LaravelOpenidConnect\LaravelOpenidConnectServiceProvider;
 
 class TestCase extends Orchestra
 {
