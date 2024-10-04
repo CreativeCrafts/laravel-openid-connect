@@ -13,8 +13,8 @@ jobs:
       fail-fast: true
       matrix:
         os: [ubuntu-latest]
-        php: [8.2]
-        laravel: [11.*, 10.*]
+        php: [8.2, 8.3]
+        laravel: [11.*]
         stability: [prefer-stable]
         include:
           - laravel: 11.*
@@ -23,12 +23,6 @@ jobs:
             pest: ^3.2
             pest-plugin-arch: ^3.0
             pest-plugin-laravel: ^3.0
-          - laravel: 10.*
-            testbench: 8.*
-            carbon: ^2.63
-            pest: ^2.35.1
-            pest-plugin-arch: ^2.7
-            pest-plugin-laravel: ^2.4
 
     name: P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.stability }} - ${{ matrix.os }}
 
