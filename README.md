@@ -1,9 +1,9 @@
 # LaravelOpenIdConnect
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/rockblings/laravel-openid-connect.svg?style=flat-square)](https://packagist.org/packages/rockblings/laravel-openid-connect)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/rockblings/laravel-openid-connect/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/rockblings/laravel-openid-connect/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/rockblings/laravel-openid-connect/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/rockblings/laravel-openid-connect/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/rockblings/laravel-openid-connect.svg?style=flat-square)](https://packagist.org/packages/rockblings/laravel-openid-connect)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/creativecrafts/laravel-openid-connect.svg?style=flat-square)](https://packagist.org/packages/creativecrafts/laravel-openid-connect)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/creativecrafts/laravel-openid-connect/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/creativecrafts/laravel-openid-connect/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/creativecrafts/laravel-openid-connect/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/creativecrafts/laravel-openid-connect/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/creativecrafts/laravel-openid-connect.svg?style=flat-square)](https://packagist.org/packages/creativecrafts/laravel-openid-connect)
 
 The **LaravelOpenIdConnect** package offers seamless integration of OpenID Connect authentication for Laravel applications. It allows your app to securely authenticate users via OpenID Connect providers, enabling effortless access token management, user information retrieval, and token refreshment. With a clean and straightforward API, this package abstracts the complexity of managing OAuth 2.0 flows behind the scenes, so developers can focus on building applications rather than managing authentication processes.
 
