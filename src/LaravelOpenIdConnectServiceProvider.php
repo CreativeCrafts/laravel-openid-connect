@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CreativeCrafts\LaravelOpenidConnect;
 
-use CreativeCrafts\LaravelOpenidConnect\Commands\LaravelOpenidConnectCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-class LaravelOpenidConnectServiceProvider extends PackageServiceProvider
+final class LaravelOpenIdConnectServiceProvider extends PackageServiceProvider
 {
+     // @pest-mutate-ignore
     public function configurePackage(Package $package): void
     {
         $package

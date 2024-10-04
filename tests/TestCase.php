@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CreativeCrafts\LaravelOpenidConnect\Tests;
 
-use CreativeCrafts\LaravelOpenidConnect\LaravelOpenidConnectServiceProvider;
+use CreativeCrafts\LaravelOpenidConnect\LaravelOpenIdConnectServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -13,15 +15,8 @@ class TestCase extends Orchestra
         parent::setUp();
 
         Factory::guessFactoryNamesUsing(
-            fn (string $modelName) => 'CreativeCrafts\\LaravelOpenidConnect\\Database\\Factories\\'.class_basename($modelName).'Factory'
+            fn (string $modelName) => 'CreativeCrafts\\LaravelOpenIdConnect\\Database\\Factories\\'.class_basename($modelName).'Factory'
         );
-    }
-
-    protected function getPackageProviders($app)
-    {
-        return [
-            LaravelOpenidConnectServiceProvider::class,
-        ];
     }
 
     public function getEnvironmentSetUp($app)
@@ -32,5 +27,12 @@ class TestCase extends Orchestra
         $migration = include __DIR__.'/../database/migrations/create_laravel-openid-connect_table.php.stub';
         $migration->up();
         */
+    }
+
+    protected function getPackageProviders($app)
+    {
+        return [
+            LaravelOpenIdConnectServiceProvider::class,
+        ];
     }
 }

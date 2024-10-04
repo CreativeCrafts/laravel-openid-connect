@@ -76,10 +76,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "CreativeCrafts\\LaravelOpenidConnect\\LaravelOpenidConnectServiceProvider"
+                "LaravelOpenIdConnectServiceProvider"
             ],
             "aliases": {
-                "LaravelOpenidConnect": "CreativeCrafts\\LaravelOpenidConnect\\Facades\\LaravelOpenidConnect"
+                "LaravelOpenidConnect": "LaravelOpenIdConnect"
             }
         }
     },
