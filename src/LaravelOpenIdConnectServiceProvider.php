@@ -9,7 +9,7 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 
 final class LaravelOpenIdConnectServiceProvider extends PackageServiceProvider
 {
-     // @pest-mutate-ignore
+    // @pest-mutate-ignore
     public function configurePackage(Package $package): void
     {
         $package

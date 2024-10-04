@@ -6,7 +6,6 @@ namespace CreativeCrafts\LaravelOpenidConnect;
 
 use CreativeCrafts\LaravelOpenidConnect\Contracts\LaravelOpenIdConnectContract;
 use CreativeCrafts\LaravelOpenidConnect\DataTransferObjects\AuthorizationData;
-use CreativeCrafts\LaravelOpenidConnect\Exceptions\AuthenticationException;
 use CreativeCrafts\LaravelOpenidConnect\Exceptions\InvalidProviderConfigurationException;
 use Illuminate\Http\Client\ConnectionException;
 use Symfony\Component\HttpFoundation\Response;
@@ -69,7 +68,6 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
     /**
      * Retrieves the access token from the OpenID Connect provider using the provided authorization code.
      * @throws ConnectionException If there is an issue with the HTTP request to the OpenID Connect provider.
-     * @throws AuthenticationException If the access token cannot be obtained due to authentication failure.
      */
     public function getAccessToken(string $authorizationCode): array
     {
@@ -94,7 +92,6 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
     /**
      * Retrieves user information from the OpenID Connect provider using the provided access token.
      * @throws ConnectionException If there is an issue with the HTTP request to the OpenID Connect provider.
-     * @throws AuthenticationException If the user information cannot be obtained due to authentication failure.
      */
     public function getUserInfo(string $accessToken): array
     {
@@ -107,7 +104,6 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
     /**
      * Refreshes the access token using the provided refresh token.
      * @throws ConnectionException If there is an issue with the HTTP request to the OpenID Connect provider.
-     * @throws AuthenticationException If the access token cannot be refreshed due to authentication failure.
      */
     public function refreshToken(string $refreshToken): array
     {

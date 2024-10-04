@@ -36,7 +36,7 @@ final readonly class LaravelOpenIdConnectService implements LaravelOpenIdConnect
      */
     public static function get(string $url, string $accessToken): Response
     {
-        $response =  Http::withToken($accessToken)->get($url);
+        $response = Http::withToken($accessToken)->get($url);
         if ($response->failed()) {
             throw new ConnectionException("HTTP request failed with status: " . $response->status());
         }
