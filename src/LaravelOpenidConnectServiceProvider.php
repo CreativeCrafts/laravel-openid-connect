@@ -2,9 +2,9 @@
 
 namespace CreativeCrafts\LaravelOpenidConnect;
 
+use CreativeCrafts\LaravelOpenidConnect\Commands\LaravelOpenidConnectCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use CreativeCrafts\LaravelOpenidConnect\Commands\LaravelOpenidConnectCommand;
 
 class LaravelOpenidConnectServiceProvider extends PackageServiceProvider
 {
