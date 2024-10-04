@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CreativeCrafts\LaravelOpenidConnect;
 
-use CreativeCrafts\LaravelOpenidConnect\Commands\LaravelOpenidConnectCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
