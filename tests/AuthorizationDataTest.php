@@ -26,7 +26,8 @@ it('throws InvalidArgumentException if redirect URI is missing in accessTokenDat
             null,
             'authorization_code'
         ))
-            ->accessTokenData())
+            ->accessTokenData()
+    )
             ->toThrow(InvalidArgumentException::class, 'Redirect URI is required for authorization code grant.');
 });
 
@@ -37,7 +38,8 @@ it('throws InvalidArgumentException if authorization code is missing in accessTo
             'test_client_secret',
             'https://provider.com',
             'http://localhost/callback',
-            null))
+            null
+        ))
             ->accessTokenData()
     )
         ->toThrow(InvalidArgumentException::class, 'Authorization code is required for authorization code grant.');
@@ -87,7 +89,8 @@ it('throws InvalidArgumentException if client secret is missing in refreshTokenD
             null,
             'refresh_token'
         ))
-            ->refreshTokenData())
+            ->refreshTokenData()
+    )
             ->toThrow(InvalidArgumentException::class, 'Client secret is required for refresh token grant.');
 });
 
@@ -115,7 +118,8 @@ it('throws InvalidArgumentException if redirect URI is missing in queryParameter
             url: 'https://provider.com',
             responseType: 'code',
             scope: 'openid',
-            state: 'xyz'))
+            state: 'xyz'
+        ))
             ->queryParameters()
     )
         ->toThrow(InvalidArgumentException::class, 'Redirect URI is required for authorization code grant.');
@@ -144,7 +148,8 @@ it('throws InvalidArgumentException if scope is missing in queryParameters', fun
             responseType: 'code',
             state: 'xyz'
         ))
-            ->queryParameters())
+            ->queryParameters()
+    )
         ->toThrow(InvalidArgumentException::class, 'Scope is required for authorization code grant.');
 });
 
