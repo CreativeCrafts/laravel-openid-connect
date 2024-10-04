@@ -1,10 +1,11 @@
 {
-    "name": "rockblings/laravel-openid-connect",
+    "name": "creativecrafts/laravel-openid-connect",
     "description": "A simple package that will provide a fluent api to interact with third party authentication providers",
     "keywords": [
         "CreativeCrafts",
         "laravel",
-        "laravel-openid-connect"
+        "laravel-openid-connect",
+        "openid connect"
     ],
     "homepage": "https://github.com/rockblings/laravel-openid-connect",
     "license": "MIT",
@@ -21,16 +22,19 @@
         "illuminate/contracts": "^10.0||^11.0"
     },
     "require-dev": {
+        "mockery/mockery": "^1.6",
         "laravel/pint": "^1.14",
         "nunomaduro/collision": "^8.1.1||^7.10.0",
         "larastan/larastan": "^2.9",
         "orchestra/testbench": "^9.0.0||^8.22.0",
-        "pestphp/pest": "^2.34",
-        "pestphp/pest-plugin-arch": "^2.7",
-        "pestphp/pest-plugin-laravel": "^2.3",
+        "pestphp/pest": "^3.2",
+        "pestphp/pest-plugin-arch": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
         "phpstan/extension-installer": "^1.3",
         "phpstan/phpstan-deprecation-rules": "^1.1",
-        "phpstan/phpstan-phpunit": "^1.3"
+        "phpstan/phpstan-phpunit": "^1.3",
+        "rector/rector": "^1.2",
+        "symplify/easy-coding-standard": "^12.3.5"
     },
     "autoload": {
         "psr-4": {
