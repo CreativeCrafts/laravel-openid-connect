@@ -103,7 +103,7 @@ Redirect users to the provider’s authorization page by generating the URL usin
 
 use CreativeCrafts\LaravelOpenidConnect\LaravelOpenIdConnect;
 
-$openIdConnect = new LaravelOpenIdConnect('example');
+$openIdConnect = new LaravelOpenIdConnect($provider);
 $authorizationUrl = $openIdConnect->getAuthorizationUrl();
 
 return redirect($authorizationUrl);
