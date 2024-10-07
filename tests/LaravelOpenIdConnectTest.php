@@ -12,11 +12,26 @@ use Illuminate\Support\Facades\Session;
 covers(LaravelOpenIdConnect::class);
 
 beforeEach(function () {
+    Session::start();
+    $this->state = csrf_token();
     Config::set('openid-connect.providers.my_provider', [
-        'client_id' => 'test_client_id',
-        'client_secret' => 'test_client_secret',
-        'redirect_uri' => 'http://localhost/callback',
-        'scopes' => ['openid', 'profile'],
+        'authorization' => [
+            'client_id' => 'test_client_id',
+            'redirect_uri' => 'http://localhost/callback',
+            'scopes' => ['openid', 'profile'],
+            'response_type' => 'code',
+            'state' => $this->state,
+        ],
+        'access_token' => [
+            'grant_type' => 'authorization_code',
+            'client_secret' => 'test',
+            'redirect_uri' => 'http://localhost/callback',
+        ],
+        'refresh_token' => [
+            'grant_type' => 'refresh_token',
+            'client_id' => 'test_client_id',
+            'client_secret' => 'test_client_secret',
+        ],
         'issuer' => 'https://provider.com'
     ]);
     $this->provider = 'my_provider';
@@ -34,9 +49,6 @@ it('constructs with valid provider configuration', function () {
 });
 
 it('generates the correct authorization URL', function () {
-    Session::start();
-    $state = csrf_token();
-
     $authUrl = $this->service->getAuthorizationUrl();
 
     $encodedRedirectUri = urlencode('http://localhost/callback');
@@ -44,7 +56,7 @@ it('generates the correct authorization URL', function () {
     expect($authUrl)->toContain('https://provider.com/authorize')
         ->and($authUrl)->toContain('client_id=test_client_id')
         ->and($authUrl)->toContain('redirect_uri=' . $encodedRedirectUri)
-        ->and($authUrl)->toContain('state=' . $state);
+        ->and($authUrl)->toContain('state=' . $this->state);
 });
 
 it('throws AuthenticationException if access token retrieval fails', function () {
@@ -52,17 +64,22 @@ it('throws AuthenticationException if access token retrieval fails', function ()
         'https://provider.com/token' => Http::response(null, 401),
     ]);
 
-    $this->service->getAccessToken('invalid_code');
+    $this->service->getAccessToken('');
 })->throws(ConnectionException::class);
 
 it('retrieves access token successfully', function () {
     $mockToken = [
-        'access_token' => 'fake_token',
+        'access_token' => 'token_value',
+        'token_type' => 'Bearer',
         'expires_in' => 3600,
     ];
 
     Http::fake([
-        'https://provider.com/token' => Http::response($mockToken, 200),
+        'https://provider.com/token' => Http::response([
+            'access_token' => 'token_value',
+            'token_type' => 'Bearer',
+            'expires_in' => 3600,
+        ], 200),
     ]);
 
     $accessToken = $this->service->getAccessToken('valid_code');

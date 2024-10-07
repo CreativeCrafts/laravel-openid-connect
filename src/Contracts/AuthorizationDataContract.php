@@ -7,22 +7,11 @@ namespace CreativeCrafts\LaravelOpenidConnect\Contracts;
 interface AuthorizationDataContract
 {
     public function __construct(
-        string $clientId,
-        ?string $clientSecret = null,
-        string $url = '',
-        ?string $redirectUri = null,
-        ?string $code = null,
-        ?string $refreshToken = null,
-        ?string $responseType = null,
-        ?string $scope = null,
-        ?string $state = null
+        array $providerAuthorisationConfig,
+        string $issuerUrl
     );
 
-    public function accessTokenData(): array;
-
-    public function refreshTokenData(): array;
-
-    public function issuerUrl(): string;
-
     public function queryParameters(): string;
+
+    public function authorizationUrl(): string;
 }

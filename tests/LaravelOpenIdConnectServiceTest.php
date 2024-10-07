@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use CreativeCrafts\LaravelOpenidConnect\LaravelOpenIdConnectService;
+use CreativeCrafts\LaravelOpenidConnect\Services\LaravelOpenIdConnectService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 

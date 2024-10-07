@@ -5,22 +5,26 @@ declare(strict_types=1);
 namespace CreativeCrafts\LaravelOpenidConnect;
 
 use CreativeCrafts\LaravelOpenidConnect\Contracts\LaravelOpenIdConnectContract;
+use CreativeCrafts\LaravelOpenidConnect\DataTransferObjects\AccessTokenData;
 use CreativeCrafts\LaravelOpenidConnect\DataTransferObjects\AuthorizationData;
+use CreativeCrafts\LaravelOpenidConnect\DataTransferObjects\RefreshTokenData;
 use CreativeCrafts\LaravelOpenidConnect\Exceptions\InvalidProviderConfigurationException;
+use CreativeCrafts\LaravelOpenidConnect\Services\LaravelOpenIdConnectService;
 use Illuminate\Http\Client\ConnectionException;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
 final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
 {
     protected array $providerConfig;
 
-    protected string $clientId;
+    protected array $authorizationConfig;
 
-    protected string $clientSecret;
+    protected array $accessTokenConfig;
 
-    protected string $redirectUri;
+    protected array $refreshTokenConfig;
 
-    protected string $scopes;
+    protected string $issuerUrl;
 
     /**
      * Constructs a new instance of LaravelOpenIdConnect.
@@ -39,13 +43,15 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
                 Response::HTTP_NOT_FOUND
             );
         }
+        if (isset($config['authorization']['scopes'])) {
+            $config['authorization']['scopes'] = implode(' ', $config['authorization']['scopes']);
+        }
 
         $this->providerConfig = $config;
-
-        $this->clientId = $this->providerConfig['client_id'];
-        $this->clientSecret = $this->providerConfig['client_secret'];
-        $this->redirectUri = $this->providerConfig['redirect_uri'];
-        $this->scopes = implode(' ', $this->providerConfig['scopes']);
+        $this->authorizationConfig = $config['authorization'];
+        $this->accessTokenConfig = $config['access_token'];
+        $this->refreshTokenConfig = $config['refresh_token'];
+        $this->issuerUrl = $config['issuer'];
     }
 
     /**
@@ -53,16 +59,8 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
      */
     public function getAuthorizationUrl(): string
     {
-        $authorizationData = new AuthorizationData(
-            clientId: $this->clientId,
-            redirectUri: $this->redirectUri,
-            responseType: 'code',
-            scope: $this->scopes,
-            state: csrf_token()
-        );
-
-        $queryParams = $authorizationData->queryParameters();
-        return "{$this->providerConfig['issuer']}/authorize?$queryParams";
+        $authorizationData = new AuthorizationData($this->authorizationConfig, $this->issuerUrl);
+        return $authorizationData->authorizationUrl();
     }
 
     /**
@@ -71,20 +69,22 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
      */
     public function getAccessToken(string $authorizationCode): array
     {
-        $authorizationData = new AuthorizationData(
-            clientId: $this->clientId,
-            clientSecret: $this->clientSecret,
-            url: "{$this->providerConfig['issuer']}/token",
-            redirectUri: $this->redirectUri,
-            code: $authorizationCode
-        );
+        $accessToken = new AccessTokenData($this->accessTokenConfig, $authorizationCode, $this->issuerUrl);
         $response = LaravelOpenIdConnectService::post(
-            $authorizationData->issuerUrl(),
-            $authorizationData->accessTokenData()
+            $accessToken->url(),
+            $accessToken->toArray()
         );
+
+        if ($response->failed()) {
+            throw new RuntimeException('Failed to retrieve access token');
+        }
 
         /** @var array $accessToken */
         $accessToken = $response->json();
+
+        if (! is_array($accessToken)) {
+            throw new RuntimeException('Response returned null. Check the issuer URL or request format.');
+        }
 
         return $accessToken;
     }
@@ -107,19 +107,22 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
      */
     public function refreshToken(string $refreshToken): array
     {
-        $authorizationData = new AuthorizationData(
-            clientId: $this->clientId,
-            clientSecret: $this->clientSecret,
-            url: "{$this->providerConfig['issuer']}/token",
-            refreshToken: $refreshToken
-        );
+        $refreshTokenData = new RefreshTokenData($this->refreshTokenConfig, $refreshToken, $this->issuerUrl);
         $response = LaravelOpenIdConnectService::post(
-            $authorizationData->issuerUrl(),
-            $authorizationData->refreshTokenData()
+            $refreshTokenData->url(),
+            $refreshTokenData->toArray()
         );
+
+        if ($response->failed()) {
+            throw new RuntimeException('Failed to refresh token');
+        }
 
         /** @var array $refreshedToken */
         $refreshedToken = $response->json();
+
+        if (! is_array($refreshedToken)) {
+            throw new RuntimeException('Response returned null. Check the issuer URL or request format.');
+        }
         return $refreshedToken;
     }
 }
