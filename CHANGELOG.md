@@ -55,3 +55,5 @@ These changes aim to enhance the flexibility, configurability, and reliability o
 - feat: Added support for custom configuration in the OpenID Connect integration.
   - Updated the configuration file to allow custom provider configurations.
   - Divided the configuration into authorization, access_token and refresh_token.
+  - Added missing pest test
+  - 100% test coverage and mutation
