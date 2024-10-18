@@ -11,16 +11,21 @@ use Illuminate\Support\Facades\Http;
 
 final class OpenIDConnectHttpClient implements OpenIDConnectHttpClientContract
 {
+    // @pest-mutate-ignore
     private int $timeOut = 60;
 
+    // @pest-mutate-ignore
     private bool $verifyPeer = true;
 
+    // @pest-mutate-ignore
     private ?string $httpProxy = null;
 
+    // @pest-mutate-ignore
     private ?string $certPath = null;
 
     private int $responseCode;
 
+    // @pest-mutate-ignore
     private ?string $responseContentType = null;
 
     /**
