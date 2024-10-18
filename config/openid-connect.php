@@ -9,29 +9,27 @@ declare(strict_types=1);
  */
 
 return [
-    'default' => env('OPENID_DEFAULT_PROVIDER', 'okta'),
-
+    /** The default authentication provider to be used. if a provider is not specified */
+    'default_provider' => env('OPENID_CONNECT_DEFAULT_PROVIDER', ''),
+    /** The default redirect URL to be used. if a provider redirect url is not provided. */
+    'default_redirect_url' => env(
+        'OPENID_CONNECT_DEFAULT_REDIRECT_URI',
+        ''
+    ),
+    /** List of providers. */
     'providers' => [
-        // Configuration for Okta OpenID Connect provider
-        'okta' => [
-            'authorization' => [
-                'client_id' => env('OKTA_CLIENT_ID'), // Client ID obtained from the Okta Developer Console
-                'redirect_uri' => env('OKTA_REDIRECT_URI'), // Redirect URI registered in the Okta Developer Console
-                'scopes' => explode(',', env('OKTA_SCOPES', 'openid, profile, email')), // Scopes requested from the Okta OpenID Connect provider
-                'response_type' => 'code', // Response type for the Okta OpenID Connect provider
-                'state' => csrf_token(), // CSRF token for the Okta OpenID Connect provider
+        'example' => [
+            'provider_url' => env('EXAMPLE_PROVIDER_URI'),
+            'issuer' => env('EXAMPLE_ISSUER_URI'),
+            'client_id' => env('EXAMPLE_CLIENT_ID'),
+            'client_secret' => env('EXAMPLE_CLIENT_SECRET'),
+            'scopes' => ['openid', 'email', 'profile'],
+            'response_type' => 'code',
+            'redirect_url' => env('EXAMPLE_REDIRECT_URI'),
+            "token_endpoint_auth_methods_supported" => [
+                "client_secret_post",
+                "client_secret_basic",
             ],
-            'access_token' => [
-                'grant_type' => 'authorization_code', // Grant type for the Okta OpenID Connect provider
-                'client_secret' => env('OKTA_CLIENT_SECRET'), // Client secret obtained from the Okta Developer Console
-                'redirect_uri' => env('OKTA_REDIRECT_URI'), // Redirect URI registered in the Okta Developer Console
-            ],
-            'refresh_token' => [
-                'grant_type' => 'refresh_token', // Grant type for the Okta OpenID Connect provider
-                'client_id' => env('OKTA_CLIENT_ID'), // Client ID obtained from the Okta Developer Console
-                'client_secret' => env('OKTA_CLIENT_SECRET'),
-            ],
-            'issuer' => env('OKTA_ISSUER'), // Issuer URL for Okta OpenID Connect
         ],
     ],
 ];

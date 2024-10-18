@@ -6,6 +6,8 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/creativecrafts/laravel-openid-connect.svg?style=flat-square)](https://packagist.org/packages/creativecrafts/laravel-openid-connect)
 
 The **LaravelOpenIdConnect** package offers seamless integration of OpenID Connect authentication for Laravel applications. It allows your app to securely authenticate users via OpenID Connect providers, enabling effortless access token management, user information retrieval, and token refreshment. With a clean and straightforward API, this package abstracts the complexity of managing OAuth 2.0 flows behind the scenes, so developers can focus on building applications rather than managing authentication processes.
+This is package was forked from "jumbojett/OpenID-Connect-PHP" and modified to work the Laravel way. 
+ - Special thanks to [jumbojett/OpenID-Connect-PHP](https://github.com/jumbojett/OpenID-Connect-PHP).
 
 ## Key Features
 
@@ -14,9 +16,6 @@ The **LaravelOpenIdConnect** package offers seamless integration of OpenID Conne
 - **User Information**: Retrieve user information (claims) from the OpenID Connect provider with ease.
 - **Token Refreshing**: Automatically refresh tokens when they expire using the refresh token.
 - **Customizable Configurations**: Define multiple OpenID Connect providers in the configuration for multi-provider support.
-- **100% Code Coverage and Mutation Testing**: The package is fully tested with 100% code coverage and mutation testing, ensuring high reliability and robustness.
-
-This package is ideal for developers who need robust and secure OpenID Connect functionality within their Laravel applications.
 
 ## Installation
 
@@ -26,12 +25,13 @@ This package is ideal for developers who need robust and secure OpenID Connect f
 composer require creativecrafts/laravel-openid-connect
 ```
 
-You can publish the config file with:
+Next, publish the package's configuration file:
 
 ```bash
 php artisan vendor:publish  --tag="openid-connect-config"
 ```
 
+This will create a config/openid-connect.php file in your Laravel project.
 This is the contents of the published config file:
 
 ```php
@@ -42,29 +42,27 @@ This is the contents of the published config file:
  */
 
 return [
-    'default' => env('OPENID_DEFAULT_PROVIDER', 'okta'),
-
+    /** The default authentication provider to be used. if a provider is not specified */
+    'default_provider' => env('OPENID_CONNECT_DEFAULT_PROVIDER', ''),
+    /** The default redirect URL to be used. if a provider redirect url is not provided. */
+    'default_redirect_url' => env(
+        'OPENID_CONNECT_DEFAULT_REDIRECT_URI',
+        ''
+    ),
+    /** List of providers. */
     'providers' => [
-        // Configuration for Okta OpenID Connect provider
-        'okta' => [
-            'authorization' => [
-                'client_id' => env('OKTA_CLIENT_ID'), // Client ID obtained from the Okta Developer Console
-                'redirect_uri' => env('OKTA_REDIRECT_URI'), // Redirect URI registered in the Okta Developer Console
-                'scopes' => explode(',', env('OKTA_SCOPES', 'openid, profile, email')), // Scopes requested from the Okta OpenID Connect provider
-                'response_type' => 'code', // Response type for the Okta OpenID Connect provider
-                'state' => csrf_token(), // CSRF token for the Okta OpenID Connect provider
+        'example' => [
+            'provider_url' => env('EXAMPLE_PROVIDER_URI'),
+            'issuer' => env('EXAMPLE_ISSUER_URI'),
+            'client_id' => env('EXAMPLE_CLIENT_ID'),
+            'client_secret' => env('EXAMPLE_CLIENT_SECRET'),
+            'scopes' => ['openid', 'email', 'profile'],
+            'response_type' => 'code',
+            'redirect_url' => env('EXAMPLE_REDIRECT_URI'),
+            "token_endpoint_auth_methods_supported" => [
+                "client_secret_post",
+                "client_secret_basic",
             ],
-            'access_token' => [
-                'grant_type' => 'authorization_code', // Grant type for the Okta OpenID Connect provider
-                'client_secret' => env('OKTA_CLIENT_SECRET'), // Client secret obtained from the Okta Developer Console
-                'redirect_uri' => env('OKTA_REDIRECT_URI'), // Redirect URI registered in the Okta Developer Console
-            ],
-            'refresh_token' => [
-                'grant_type' => 'refresh_token', // Grant type for the Okta OpenID Connect provider
-                'client_id' => env('OKTA_CLIENT_ID'), // Client ID obtained from the Okta Developer Console
-                'client_secret' => env('OKTA_CLIENT_SECRET'),
-            ],
-            'issuer' => env('OKTA_ISSUER'), // Issuer URL for Okta OpenID Connect
         ],
     ],
 ];
@@ -78,30 +76,24 @@ EXAMPLE_REDIRECT_URI=https://your-app.com/callback
 ## Usage
 
 ```php
-1.Generate Authorization URL:
-Redirect users to the provider’s authorization page by generating the URL using the getAuthorizationUrl() method.
+1.Configure the providers in the config/openid-connect.php file.
+
+2.Authenticate users by redirecting them to the provider’s authorization page.:
 
 use CreativeCrafts\LaravelOpenidConnect\LaravelOpenIdConnect;
 
-$openIdConnect = new LaravelOpenIdConnect($provider);
-$authorizationUrl = $openIdConnect->getAuthorizationUrl();
-
-return redirect($authorizationUrl);
-
-2.Get Access Token:
-After the user is redirected back to your app with an authorization code, you can exchange the code for an access token.
-
-$accessToken = $openIdConnect->getAccessToken($authorizationCode);
-
-3.Get User Info:
-Once you have the access token, retrieve user information from the OpenID Connect provider.
-
-$userInfo = $openIdConnect->getUserInfo($accessToken['access_token']);
-
-4.Refresh Token:
-If the access token expires, refresh it using the refresh token provided.
-
-$refreshedToken = $openIdConnect->refreshToken($accessToken['refresh_token']);
+$openIdConnect = new LaravelOpenIdConnect();
+/** @var bool $authorisation */
+$authorisation = $openIdConnect
+    ->acceptProvider('providerName'))
+    ->authenticate();
+    
+2.Get User Information:
+Once the user is authenticated, retrieve user information from the OpenID Connect provider.
+// optionally pass the $authorisation attribute you want to retrieve
+if ($authorisation) {
+    $userInfo = $openIdConnect->retrieveUserInfo();
+}
 
 Error Handling:
 If the configuration for the provider is missing or misconfigured, the package throws an InvalidProviderConfigurationException. Ensure that all necessary configurations, such as the issuer URL, client ID, and client secret, are correctly set.
@@ -110,10 +102,8 @@ If the configuration for the provider is missing or misconfigured, the package t
 ## Testing
 
 ```bash
-This package is built with a focus on quality and reliability. It achieves:
+This package is built with a focus on quality and reliability. I am currently working on adding more tests to ensure that the package works as expected.
 
-  • 100% Code Coverage: All parts of the package are thoroughly tested to ensure full coverage.
-  • Mutation Testing: The package has been tested using mutation testing techniques, which simulate errors to verify that the tests are robust and catch potential issues. This ensures that the package can handle real-world scenarios with high confidence.
 
 To run the tests, use the following command:
 ./vendor/bin/pest
