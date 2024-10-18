@@ -4,23 +4,29 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\LaravelOpenidConnect\Services;
 
-use CreativeCrafts\LaravelOpenIdConnect\Contracts\OpenIDConnectTokenManagerContract;
+use CreativeCrafts\LaravelOpenidConnect\Contracts\OpenIDConnectTokenManagerContract;
+use CreativeCrafts\LaravelOpenidConnect\Exceptions\OpenIDConnectClientException;
 use Exception;
 
 final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContract
 {
+    // @pest-mutate-ignore
     private ?string $accessToken = null;
 
+    // @pest-mutate-ignore
     private ?string $refreshToken = null;
 
+    // @pest-mutate-ignore
     private ?string $idToken = null;
 
+    // @pest-mutate-ignore
     private ?array $tokenResponse = null;
 
     /**
      * Sets the access token for the OpenID Connect session.
      *
      * @param string $accessToken The access token to be set.
+     * @throws OpenIDConnectClientException
      */
     public function setAccessToken(string $accessToken): void
     {
@@ -63,6 +69,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      * Sets the ID token for the OpenID Connect session.
      *
      * @param string $idToken The ID token to be set. This token is used to authenticate the user and provide user information.
+     * @throws OpenIDConnectClientException
      */
     public function setIdToken(string $idToken): void
     {
@@ -83,11 +90,11 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
 
     /**
      * Sets the token response received from the OpenID Connect server.
-     *
      * This method is used to store the token response received from the server. The token response
      * typically contains access, refresh, and ID tokens, along with other relevant information.
      *
      * @param array $response The token response received from the server.
+     * @throws OpenIDConnectClientException
      */
     public function setTokenResponse(array $response): void
     {

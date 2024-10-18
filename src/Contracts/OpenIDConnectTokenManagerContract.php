@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CreativeCrafts\LaravelOpenIdConnect\Contracts;
+namespace CreativeCrafts\LaravelOpenidConnect\Contracts;
 
 interface OpenIDConnectTokenManagerContract
 {
