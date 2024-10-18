@@ -26,7 +26,6 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      * Sets the access token for the OpenID Connect session.
      *
      * @param string $accessToken The access token to be set.
-     * @throws OpenIDConnectClientException
      */
     public function setAccessToken(string $accessToken): void
     {
@@ -94,7 +93,6 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      * typically contains access, refresh, and ID tokens, along with other relevant information.
      *
      * @param array $response The token response received from the server.
-     * @throws OpenIDConnectClientException
      */
     public function setTokenResponse(array $response): void
     {
