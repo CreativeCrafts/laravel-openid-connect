@@ -380,7 +380,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      */
     protected function getJwks(): array
     {
-        /** @var string $jwksUri */ 
+        /** @var string $jwksUri */
         $jwksUri = $this->config->getProviderConfigValue('jwks_uri');
         $response = $this->httpClient->fetchURL($jwksUri);
         /** @var array $fetchedJwks */
@@ -534,7 +534,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
         }
 
         /** @var object $responseObject */
-        $responseObject = json_decode($response, true);
+        $responseObject = json_decode($response, false);
 
         return $responseObject;
     }
