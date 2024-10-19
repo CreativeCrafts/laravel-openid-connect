@@ -29,12 +29,35 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      */
     public function __construct(array $config)
     {
-        $this->tokenManager = new OpenIDConnectTokenManager();
-        $this->httpClient = new OpenIDConnectHttpClient();
-        $this->jwtProcessor = new OpenIDConnectJWTProcessor();
-        $this->config = new OpenIDConnectConfig($config);
+        $this->setTokenManager(new OpenIDConnectTokenManager());
+        $this->setHttpClient(new OpenIDConnectHttpClient());
+        $this->setJwtProcessor(new OpenIDConnectJWTProcessor());
+        $this->setConfig($config);
         // Initialize JWE Loader
         // $this->initializeJWELoader();
+    }
+
+    /**
+     * @throws OpenIDConnectClientException
+     */
+    public function setConfig(array $config): void
+    {
+        $this->config = new OpenIDConnectConfig($config);
+    }
+
+    public function setHttpClient(OpenIDConnectHttpClient $httpClient): void
+    {
+        $this->httpClient = $httpClient;
+    }
+
+    public function setTokenManager(OpenIDConnectTokenManager $tokenManager): void
+    {
+        $this->tokenManager = $tokenManager;
+    }
+
+    public function setJwtProcessor(OpenIDConnectJWTProcessor $jwtProcessor): void
+    {
+        $this->jwtProcessor = $jwtProcessor;
     }
 
     /**
@@ -221,6 +244,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      */
     protected function requestTokens(string $code): array
     {
+        /** @var string $tokenEndpoint */
         $tokenEndpoint = $this->config->getProviderConfigValue('token_endpoint');
         $tokenParams = [
             'grant_type' => 'authorization_code',
@@ -248,6 +272,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      */
     protected function requestAuthorization(): void
     {
+        /** @var string $authEndpoint */
         $authEndpoint = $this->config->getProviderConfigValue('authorization_endpoint');
         $this->tokenManager->setNonce($this->tokenManager->generateRandString());
         $nonce = $this->tokenManager->getNonce();
@@ -355,6 +380,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      */
     protected function getJwks(): array
     {
+        /** @var string $jwksUri */ 
         $jwksUri = $this->config->getProviderConfigValue('jwks_uri');
         $response = $this->httpClient->fetchURL($jwksUri);
         /** @var array $fetchedJwks */
