@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use CreativeCrafts\LaravelOpenidConnect\Exceptions\OpenIDConnectClientException;
 use CreativeCrafts\LaravelOpenidConnect\Services\OpenIDConnectManager;
 
