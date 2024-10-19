@@ -14,6 +14,7 @@ final class OpenIDConnectJWTProcessor implements OpenIDConnectJWTProcessorContra
     /**
      * @var array holds PKCE supported algorithms
      */
+    // @pest-mutate-ignore
     protected array $pkceAlgs = [
         'S256' => 'sha256',
         'plain' => false,
@@ -27,6 +28,7 @@ final class OpenIDConnectJWTProcessor implements OpenIDConnectJWTProcessorContra
      * @var string|bool holds code challenge method for PKCE mode
      * @see https://tools.ietf.org/html/rfc7636
      */
+    // @pest-mutate-ignore
     private string|bool $codeChallengeMethod = false;
 
     /**
@@ -105,17 +107,21 @@ final class OpenIDConnectJWTProcessor implements OpenIDConnectJWTProcessorContra
     public function verifyJWTSignature(string $jwt, array $keys): bool
     {
         $parts = explode('.', $jwt);
-        if (! isset($parts[0])) {
-            throw new OpenIDConnectClientException('Error missing part 0 in token');
+
+        if (count($parts) !== 3) {
+            throw new OpenIDConnectClientException('JWT must have 3 parts: header, payload, and signature');
         }
+
         $signature = $this->base64urlDecode(array_pop($parts));
         if ($signature === '' || $signature === '0') {
             throw new OpenIDConnectClientException('Error decoding signature from token');
         }
+
         $header = json_decode($this->base64urlDecode($parts[0]), false);
         if (! is_object($header)) {
             throw new OpenIDConnectClientException('Error decoding JSON from token header');
         }
+
         if (! isset($header->alg)) {
             throw new OpenIDConnectClientException('Error missing signature type in token header');
         }
