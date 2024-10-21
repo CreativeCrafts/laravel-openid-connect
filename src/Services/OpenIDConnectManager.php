@@ -9,8 +9,6 @@ use CreativeCrafts\LaravelOpenidConnect\Exceptions\OpenIDConnectClientException;
 use CreativeCrafts\LaravelOpenidConnect\Helpers\Base64Helper;
 use Exception;
 use Illuminate\Http\Client\ConnectionException;
-use Jose\Component\Core\JWK;
-use Jose\Component\Encryption\JWELoader;
 
 final class OpenIDConnectManager implements OpenIdConnectManagerContract
 {
@@ -22,8 +20,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
 
     protected OpenIDConnectConfig $config;
 
-    private JWELoader $jweLoader;
-
     /**
      * @throws OpenIDConnectClientException
      */
@@ -33,8 +29,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
         $this->setHttpClient(new OpenIDConnectHttpClient());
         $this->setJwtProcessor(new OpenIDConnectJWTProcessor());
         $this->setConfig($config);
-        // Initialize JWE Loader
-        // $this->initializeJWELoader();
     }
 
     /**
@@ -146,6 +140,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      *
      * @throws ConnectionException
      * @throws OpenIDConnectClientException
+     * @throws Exception
      */
     protected function handleAuthorizationCodeFlow(): bool
     {
@@ -485,28 +480,10 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
     protected function handleJweResponse(string $jwe): string
     {
         // Create a JWK (JSON Web Key) for decryption
-        $key = new JWK([
-            'kty' => 'RSA',
-            'n' => '...', // Base64url encoded modulus
-            'e' => '...', // Base64url encoded public exponent
-            'd' => '...', // Base64url encoded private exponent
-            'p' => '...', // Base64url encoded first prime factor
-            'q' => '...', // Base64url encoded second prime factor
-            'dp' => '...', // Base64url encoded first factor CRT exponent
-            'dq' => '...', // Base64url encoded second factor CRT exponent
-            'qi' => '...', // Base64url encoded first CRT coefficient
-        ]);
-
-        // Load and decrypt the JWE
-        $jweObject = $this->jweLoader->loadAndDecryptWithKey($jwe, $key, $recipientIndex);
-
-        // Get the decrypted payload
-        $decryptedPayload = $jweObject->getPayload();
-
-        if (! is_string($decryptedPayload)) {
-            throw new OpenIDConnectClientException('Unable to decrypt JWE payload');
+        /*$key = new JWK([
         }
-        return $decryptedPayload;
+        return $decryptedPayload;*/
+        throw new OpenIDConnectClientException('JWE response is not supported at the moment.');
     }
 
     /**
