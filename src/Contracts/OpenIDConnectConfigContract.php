@@ -97,9 +97,9 @@ interface OpenIDConnectConfigContract
      *
      * @param string $key The key of the configuration value.
      * @param string|null $default The default value to return if the key is not found.
-     * @return string The configuration value or the default value if not found.
+     * @return string|array The configuration value or the default value if not found.
      */
-    public function getProviderConfigValue(string $key, string $default = null): string;
+    public function getProviderConfigValue(string $key, string $default = null): string|array;
 
     /**
      * Sets the encoding type for the OpenID Connect provider.
