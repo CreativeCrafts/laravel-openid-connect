@@ -407,8 +407,13 @@ final class OpenIDConnectConfig implements OpenIDConnectConfigContract
         if ($this->wellKnownConfig === null) {
             $this->fetchWellKnownConfig();
         }
-
-        return $this->wellKnownConfig[$param] ?? $default ?? throw new OpenIDConnectClientException("The provider $param could not be fetched. Make sure your provider has a well-known configuration available.");
+        if (! isset($this->wellKnownConfig[$param])) {
+            if (isset($this->providerConfig['not_supported_keys']) && in_array($param, $this->providerConfig['not_supported_keys'], true)) {
+                return [];
+            }
+            return $default ?? throw new OpenIDConnectClientException("The provider $param could not be fetched. Make sure your provider has a well-known configuration available.");
+        }
+        return $this->wellKnownConfig[$param];
     }
 
     /**

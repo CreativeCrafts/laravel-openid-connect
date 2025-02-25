@@ -14,7 +14,20 @@ it('fetches URL successfully with default options', function () {
     ]);
 
     $client = new OpenIDConnectHttpClient();
-    $response = $client->fetchURL('https://example.com');
+    $response = $client->fetchViaPostMethod('https://example.com');
+
+    expect($response)->toBe('OK')
+        ->and($client->getResponseCode())->toBe(200)
+        ->and($client->getResponseContentType())->toBe('text/plain');
+});
+
+it('fetches via get method successfully', function () {
+    Http::fake([
+        'https://example.com' => Http::response('OK', 200, ['Content-Type' => 'text/plain']),
+    ]);
+
+    $client = new OpenIDConnectHttpClient();
+    $response = $client->fetchViaGetMethod('https://example.com');
 
     expect($response)->toBe('OK')
         ->and($client->getResponseCode())->toBe(200)
@@ -29,7 +42,7 @@ it('throws an exception on HTTP failure', function () {
     $client = new OpenIDConnectHttpClient();
 
     $this->expectException(OpenIDConnectClientException::class);
-    $client->fetchURL('https://example.com');
+    $client->fetchViaPostMethod('https://example.com');
 });
 
 it('sets and uses a custom HTTP proxy', function () {
@@ -40,7 +53,7 @@ it('sets and uses a custom HTTP proxy', function () {
     $client = new OpenIDConnectHttpClient();
     $client->setHttpProxy('http://proxy.example.com');
 
-    $response = $client->fetchURL('https://example.com');
+    $response = $client->fetchViaPostMethod('https://example.com');
 
     expect($response)->toBe('OK');
 
@@ -59,7 +72,7 @@ it('sets and uses a custom SSL certificate', function () {
     $client = new OpenIDConnectHttpClient();
     $client->setCertPath('/path/to/cert.pem');
 
-    $response = $client->fetchURL('https://example.com');
+    $response = $client->fetchViaPostMethod('https://example.com');
 
     expect($response)->toBe('OK');
 
@@ -77,7 +90,7 @@ it('sets and uses a custom timeout value', function () {
     $client = new OpenIDConnectHttpClient();
     $client->setTimeout(120);
 
-    $response = $client->fetchURL('https://example.com');
+    $response = $client->fetchViaPostMethod('https://example.com');
 
     expect($response)->toBe('OK');
 
@@ -94,7 +107,7 @@ it('sets and uses peer verification setting', function () {
     $client = new OpenIDConnectHttpClient();
     $client->setVerifyPeer(false);
 
-    $response = $client->fetchURL('https://example.com');
+    $response = $client->fetchViaPostMethod('https://example.com');
 
     expect($response)->toBe('OK');
 
@@ -111,7 +124,7 @@ it('determines content type based on post body', function () {
     $client = new OpenIDConnectHttpClient();
 
     // Test with a JSON string
-    $client->fetchURL('https://example.com', '{"key":"value"}', []);
+    $client->fetchViaPostMethod('https://example.com', '{"key":"value"}', []);
 
     // Check that the correct content-type was used
     Http::assertSent(function ($request) {
@@ -119,7 +132,7 @@ it('determines content type based on post body', function () {
     });
 
     // Test with an empty string
-    $client->fetchURL('https://example.com', '', []);
+    $client->fetchViaPostMethod('https://example.com', '', []);
 
     // Check that the content-type is form-urlencoded for empty strings
     Http::assertSent(function ($request) {

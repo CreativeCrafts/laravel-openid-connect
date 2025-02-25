@@ -118,7 +118,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
             'Accept' => 'application/json',
         ];
 
-        $response = $this->httpClient->fetchURL($userInfoEndpoint, null, $headers);
+        $response = $this->httpClient->fetchViaPostMethod($userInfoEndpoint, null, $headers);
 
         if ($this->httpClient->getResponseCode() !== 200) {
             throw new OpenIDConnectClientException(
@@ -251,7 +251,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
 
         $headers = $this->prepareAuthHeaders();
 
-        $fetchToken = $this->httpClient->fetchURL($tokenEndpoint, http_build_query($tokenParams), $headers);
+        $fetchToken = $this->httpClient->fetchViaPostMethod($tokenEndpoint, http_build_query($tokenParams), $headers);
 
         /** @var array $response */
         $response = json_decode($fetchToken, true);
@@ -377,7 +377,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
     {
         /** @var string $jwksUri */
         $jwksUri = $this->config->getProviderConfigValue('jwks_uri');
-        $response = $this->httpClient->fetchURL($jwksUri);
+        $response = $this->httpClient->fetchViaPostMethod($jwksUri);
         /** @var array $fetchedJwks */
         $fetchedJwks = json_decode($response, true);
         return $fetchedJwks['keys'];

@@ -77,7 +77,7 @@ final class OpenIDConnectHttpClient implements OpenIDConnectHttpClientContract
      * @return string The response content as a string.
      * @throws OpenIDConnectClientException|ConnectionException
      */
-    public function fetchURL(string $url, ?string $postBody = null, array $headers = []): string
+    public function fetchViaPostMethod(string $url, ?string $postBody = null, array $headers = []): string
     {
         $response = Http::withHeaders($headers)
             ->withOptions([
@@ -88,6 +88,41 @@ final class OpenIDConnectHttpClient implements OpenIDConnectHttpClientContract
             ])
             ->withBody($postBody ?? '', $this->determineContentType($postBody))
             ->post($url);
+
+        $this->responseCode = $response->status();
+        $this->responseContentType = $response->header('Content-Type');
+
+        if ($response->failed()) {
+            throw new OpenIDConnectClientException('HTTP error: ' . $response->status());
+        }
+
+        return $response->body();
+    }
+
+    /**
+     * Fetches the content of a URL using the GET method.
+     *
+     * This method sends a GET request to the specified URL with optional headers
+     * and returns the response body as a string. It also updates the response code
+     * and content type properties of the class.
+     *
+     * @param string $url     The URL to fetch.
+     * @param array  $headers Additional headers to send with the request (optional).
+     *
+     * @return string The response body as a string.
+     *
+     * @throws OpenIDConnectClientException|ConnectionException If the HTTP request fails.
+     */
+    public function fetchViaGetMethod(string $url, array $headers = []): string
+    {
+        $response = Http::withHeaders($headers)
+            ->withOptions([
+                'verify' => $this->verifyPeer,
+                'timeout' => $this->timeOut,
+                'proxy' => $this->httpProxy,
+                'cert' => $this->certPath,
+            ])
+            ->get($url);
 
         $this->responseCode = $response->status();
         $this->responseContentType = $response->header('Content-Type');

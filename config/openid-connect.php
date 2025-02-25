@@ -30,6 +30,9 @@ return [
                 "client_secret_post",
                 "client_secret_basic",
             ],
+            "not_supported_keys" => [
+                // 'code_challenge_methods_supported',
+            ],
         ],
     ],
 ];

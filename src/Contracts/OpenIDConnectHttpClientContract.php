@@ -48,7 +48,7 @@ interface OpenIDConnectHttpClientContract
      *
      * @return string The response content as a string.
      */
-    public function fetchURL(string $url, ?string $postBody = null, array $headers = []): string;
+    public function fetchViaPostMethod(string $url, ?string $postBody = null, array $headers = []): string;
 
     /**
      * Gets the response code of the last HTTP request.

@@ -11,3 +11,12 @@
 
 ### Other
 - Various styling fixes and improvements.
+
+### 0.0.4 - 2025-02-25
+
+Refactor: improve HTTP client and provider configuration handling
+- Split HTTP client fetch method into separate GET and POST methods for better clarity
+- Rename fetchURL to fetchViaPostMethod to better reflect its purpose
+- Add support for handling not supported provider configuration keys
+- Update all service classes to use the new HTTP client methods
+- Add tests for the new GET method implementation
