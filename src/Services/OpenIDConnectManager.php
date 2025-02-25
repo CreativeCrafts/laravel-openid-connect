@@ -377,7 +377,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
     {
         /** @var string $jwksUri */
         $jwksUri = $this->config->getProviderConfigValue('jwks_uri');
-        $response = $this->httpClient->fetchViaPostMethod($jwksUri);
+        $response = $this->httpClient->fetchViaGetMethod($jwksUri);
         /** @var array $fetchedJwks */
         $fetchedJwks = json_decode($response, true);
         return $fetchedJwks['keys'];

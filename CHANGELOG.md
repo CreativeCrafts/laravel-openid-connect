@@ -20,3 +20,9 @@ Refactor: improve HTTP client and provider configuration handling
 - Add support for handling not supported provider configuration keys
 - Update all service classes to use the new HTTP client methods
 - Add tests for the new GET method implementation
+
+### 0.0.5 - 2025-02-25
+
+Fixed: update JWKS endpoint to use GET method instead of POST
+- The commit changes how we fetch the JSON Web Key Set (JWKS) from the OpenID Provider by using GET method instead of POST. 
+ This aligns better with standard OIDC implementations where JWKS endpoints typically expect GET requests.
