@@ -26,3 +26,6 @@ Refactor: improve HTTP client and provider configuration handling
 Fixed: update JWKS endpoint to use GET method instead of POST
 - The commit changes how we fetch the JSON Web Key Set (JWKS) from the OpenID Provider by using GET method instead of POST. 
  This aligns better with standard OIDC implementations where JWKS endpoints typically expect GET requests.
+
+### 0.0.6 - 2025-03-03
+- Added support for Laravel 12
