@@ -41,7 +41,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      *
      * @param array $config The configuration array containing OpenID Connect settings such as
      *                      client_id, client_secret, provider URLs, scopes, and other authentication parameters.
-     * @return void
      * @throws OpenIDConnectClientException If the configuration is invalid or missing required parameters.
      */
     public function setConfig(array $config): void
@@ -58,7 +57,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      *
      * @param OpenIDConnectHttpClient $httpClient The HTTP client instance to use for OpenID Connect requests.
      *                                            This client handles the low-level HTTP communication with the provider.
-     * @return void
      */
     public function setHttpClient(OpenIDConnectHttpClient $httpClient): void
     {
@@ -75,7 +73,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      * @param OpenIDConnectTokenManager $tokenManager The token manager instance to use for token operations.
      *                                                This manager handles storage, retrieval, and validation of
      *                                                various tokens and state values required for secure authentication.
-     * @return void
      */
     public function setTokenManager(OpenIDConnectTokenManager $tokenManager): void
     {
@@ -93,7 +90,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      *                                                This processor handles JWT decoding, signature verification,
      *                                                PKCE code challenge generation, and other cryptographic operations
      *                                                required for secure OpenID Connect authentication.
-     * @return void
      */
     public function setJwtProcessor(OpenIDConnectJWTProcessor $jwtProcessor): void
     {
