@@ -13,7 +13,6 @@ use Exception;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Cache\Factory;
 use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
 use JsonException;
 use Psr\SimpleCache\InvalidArgumentException;
@@ -387,7 +386,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
             return null;
         }
         return [
-            'nonce' => Arr::string(array: $data, key: 'nonce', default: ''),
+            'nonce' => fluent($data)->string(key: 'nonce')->value(),
             'code_verifier' => array_key_exists('code_verifier', $data) && $data['code_verifier'] !== null ? (string)$data['code_verifier'] : null,
         ];
     }
