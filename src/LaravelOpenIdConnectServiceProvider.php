@@ -29,8 +29,6 @@ class LaravelOpenIdConnectServiceProvider extends PackageServiceProvider
      * based on the configuration settings. It supports three storage drivers: cache, session,
      * and none (null storage). The binding is configured to resolve the correct storage
      * implementation when the TokenStorageContract is requested from the service container.
-     *
-     * @return void
      */
     public function packageRegistered(): void
     {
