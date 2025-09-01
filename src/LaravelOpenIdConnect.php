@@ -9,6 +9,7 @@ use CreativeCrafts\LaravelOpenidConnect\Exceptions\OpenIDConnectClientException;
 use CreativeCrafts\LaravelOpenidConnect\Services\OpenIDConnectConfig;
 use CreativeCrafts\LaravelOpenidConnect\Services\OpenIDConnectManager;
 use Illuminate\Http\Client\ConnectionException;
+use Psr\SimpleCache\InvalidArgumentException;
 
 final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
 {
@@ -39,6 +40,7 @@ final class LaravelOpenIdConnect implements LaravelOpenIdConnectContract
     /**
      * @throws OpenIDConnectClientException
      * @throws ConnectionException
+     * @throws InvalidArgumentException
      */
     public function authenticate(): bool
     {

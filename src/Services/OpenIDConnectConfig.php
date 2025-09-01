@@ -112,9 +112,9 @@ final class OpenIDConnectConfig implements OpenIDConnectConfigContract
     /**
      * Retrieves the client ID for the OpenID Connect provider.
      *
-     * @return string|null The client ID or null if not set.
+     * @return string The client ID.
      */
-    public function getClientID(): ?string
+    public function getClientID(): string
     {
         return $this->clientID;
     }
@@ -132,9 +132,9 @@ final class OpenIDConnectConfig implements OpenIDConnectConfigContract
     /**
      * Retrieves the client secret for the OpenID Connect provider.
      *
-     * @return string|null The client secret or null if not set.
+     * @return string The client secret.
      */
-    public function getClientSecret(): ?string
+    public function getClientSecret(): string
     {
         return $this->clientSecret;
     }
@@ -239,9 +239,6 @@ final class OpenIDConnectConfig implements OpenIDConnectConfigContract
      */
     public function setScope(array $scope): void
     {
-        if (! is_array($scope)) {
-            throw new OpenIDConnectClientException('The scope must be an array');
-        }
         $this->scopes = array_merge($this->scopes, $scope);
     }
 

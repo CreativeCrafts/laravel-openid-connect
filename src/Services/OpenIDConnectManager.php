@@ -9,6 +9,8 @@ use CreativeCrafts\LaravelOpenidConnect\Exceptions\OpenIDConnectClientException;
 use CreativeCrafts\LaravelOpenidConnect\Helpers\Base64Helper;
 use Exception;
 use Illuminate\Http\Client\ConnectionException;
+use JsonException;
+use Psr\SimpleCache\InvalidArgumentException;
 
 final class OpenIDConnectManager implements OpenIdConnectManagerContract
 {
@@ -32,23 +34,67 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
     }
 
     /**
-     * @throws OpenIDConnectClientException
+     * Sets the OpenID Connect configuration for the manager.
+     * This method initializes the OpenIDConnectConfig object with the provided configuration array.
+     * The configuration typically includes provider endpoints, client credentials, and other
+     * OpenID Connect specific settings required for authentication flows.
+     *
+     * @param array $config The configuration array containing OpenID Connect settings such as
+     *                      client_id, client_secret, provider URLs, scopes, and other authentication parameters.
+     * @return void
+     * @throws OpenIDConnectClientException If the configuration is invalid or missing required parameters.
      */
     public function setConfig(array $config): void
     {
         $this->config = new OpenIDConnectConfig($config);
     }
 
+    /**
+     * Sets the HTTP client for making requests to the OpenID Connect provider.
+     *
+     * This method allows injection of a custom HTTP client instance that will be used
+     * for all HTTP communications with the OpenID Connect provider, including requests
+     * to authorisation endpoints, token endpoints, userinfo endpoints, and JWKS URIs.
+     *
+     * @param OpenIDConnectHttpClient $httpClient The HTTP client instance to use for OpenID Connect requests.
+     *                                            This client handles the low-level HTTP communication with the provider.
+     * @return void
+     */
     public function setHttpClient(OpenIDConnectHttpClient $httpClient): void
     {
         $this->httpClient = $httpClient;
     }
 
+    /**
+     * Sets the token manager for handling OpenID Connect tokens and session state.
+     *
+     * This method allows injection of a custom token manager instance that will be used
+     * for managing access tokens, refresh tokens, ID tokens, nonces, state values, and
+     * PKCE code verifiers throughout the OpenID Connect authentication flow.
+     *
+     * @param OpenIDConnectTokenManager $tokenManager The token manager instance to use for token operations.
+     *                                                This manager handles storage, retrieval, and validation of
+     *                                                various tokens and state values required for secure authentication.
+     * @return void
+     */
     public function setTokenManager(OpenIDConnectTokenManager $tokenManager): void
     {
         $this->tokenManager = $tokenManager;
     }
 
+    /**
+     * Sets the JWT processor for handling JSON Web Token operations.
+     *
+     * This method allows injection of a custom JWT processor instance that will be used
+     * for all JWT-related operations including decoding, encoding, signature verification,
+     * and claims validation throughout the OpenID Connect authentication flow.
+     *
+     * @param OpenIDConnectJWTProcessor $jwtProcessor The JWT processor instance to use for JWT operations.
+     *                                                This processor handles JWT decoding, signature verification,
+     *                                                PKCE code challenge generation, and other cryptographic operations
+     *                                                required for secure OpenID Connect authentication.
+     * @return void
+     */
     public function setJwtProcessor(OpenIDConnectJWTProcessor $jwtProcessor): void
     {
         $this->jwtProcessor = $jwtProcessor;
@@ -60,12 +106,16 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      * @return bool Returns true if the user is successfully authenticated, false otherwise.
      * @throws OpenIDConnectClientException|ConnectionException
      * @throws Exception
+     * @throws InvalidArgumentException
      */
     public function authenticate(): bool
     {
         if (isset($_REQUEST['error'])) {
-            $desc = isset($_REQUEST['error_description']) ? ' Description: ' . $_REQUEST['error_description'] : '';
-            throw new OpenIDConnectClientException('Error: ' . $_REQUEST['error'] . $desc);
+            $errRaw = $_REQUEST['error'];
+            $error = is_string($errRaw) ? $errRaw : 'unknown_error';
+            $descText = isset($_REQUEST['error_description']) && is_string($_REQUEST['error_description']) ? $_REQUEST['error_description'] : '';
+            $desc = $descText !== '' ? ' Description: ' . $descText : '';
+            throw new OpenIDConnectClientException('Error: ' . $error . $desc);
         }
 
         if (isset($_REQUEST['code'])) {
@@ -136,30 +186,73 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
     }
 
     /**
-     * Handle the authorization code flow
+     * Handles the authorization code flow for OpenID Connect authentication.
+     * This method processes the authorization code received from the OpenID Connect provider
+     * after the user has been redirected back from the authorization endpoint. It validates
+     * the state parameter, exchanges the authorization code for tokens, verifies the ID token
+     * signature and claims, and stores the received tokens for future use. This is the most
+     * secure flow in OpenID Connect as tokens are exchanged server-to-server.
+     * The method performs the following operations:
+     * - Validates the state parameter against the stored state bundle
+     * - Restores nonce and PKCE code verifier from the state bundle
+     * - Exchanges the authorization code for access, refresh, and ID tokens
+     * - Handles JWE encrypted ID tokens if present
+     * - Verifies the ID token signature using JWKS
+     * - Validates JWT claims including issuer, audience, expiration, and nonce
+     * - Stores all tokens in the token manager
+     * - Cleans up transient authentication state
      *
-     * @throws ConnectionException
-     * @throws OpenIDConnectClientException
-     * @throws Exception
+     * @return bool Returns true if the authorization code flow completes successfully
+     *              and all tokens are validated and stored. The method does not return
+     *              false - it throws exceptions on any failure condition.
+     * @throws ConnectionException If there is a network error during token exchange
+     *                            or JWKS retrieval from the provider
+     * @throws OpenIDConnectClientException If state validation fails, token exchange
+     *                                     returns an error, ID token is missing,
+     *                                     JWT signature verification fails, or
+     *                                     JWT claims validation fails
+     * @throws Exception If there is an error during JWT processing or other
+     *                  unexpected conditions
+     * @throws InvalidArgumentException If there are issues with cache operations
+     *                                 during state bundle management
      */
     protected function handleAuthorizationCodeFlow(): bool
     {
         /** @var string $code */
         $code = $_REQUEST['code'];
 
+        // Validate state via state-scoped bundle
+        $stateRaw = $_REQUEST['state'] ?? null;
+        if (!is_string($stateRaw) || $stateRaw === '') {
+            throw new OpenIDConnectClientException('Missing state');
+        }
+        $state = $stateRaw;
+        $bundle = $this->tokenManager->loadStateBundle($state);
+        if ($bundle === null) {
+            throw new OpenIDConnectClientException('Unable to determine state');
+        }
+        // Make nonce available for claim verification and code_verifier for token request
+        $this->tokenManager->setNonce($bundle['nonce']);
+        if ($bundle['code_verifier'] !== null) {
+            $this->tokenManager->setCodeVerifier($bundle['code_verifier']);
+        }
+
         $tokenJson = $this->requestTokens($code);
         if (isset($tokenJson['error'])) {
             $errorDescription = $tokenJson['error_description'] ?? 'Got response: ' . $tokenJson['error'];
+            // Clear transient values on error
+            $this->tokenManager->clearStateBundle($state);
+            $this->tokenManager->unsetCodeVerifier();
             throw new OpenIDConnectClientException($errorDescription);
         }
 
-        if (! isset($_REQUEST['state']) || ($_REQUEST['state'] !== $this->tokenManager->getState())) {
-            throw new OpenIDConnectClientException('Unable to determine state. State: ' . $this->tokenManager->getState());
-        }
-
+        // Clean up state value in session (if any) for backwards compatibility
         $this->tokenManager->unsetState();
 
         if (! isset($tokenJson['id_token'])) {
+            // Clear PKCE and bundle even if id_token missing
+            $this->tokenManager->clearStateBundle($state);
+            $this->tokenManager->unsetCodeVerifier();
             throw new OpenIDConnectClientException('User did not authorize openid scope.');
         }
         /** @var string $idToken */
@@ -184,49 +277,93 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
 
         $this->tokenManager->setAccessToken($accessToken);
         if ($this->verifyJWTClaims($claims, $accessToken)) {
+            // Success: clear nonce, PKCE and state bundle
             $this->tokenManager->unsetNonce();
+            $this->tokenManager->unsetCodeVerifier();
+            $this->tokenManager->clearStateBundle($state);
             $this->tokenManager->setTokenResponse($tokenJson);
             $this->tokenManager->setRefreshToken($refreshToken);
             return true;
         }
 
+        // Clear on failure as well
+        $this->tokenManager->unsetCodeVerifier();
+        $this->tokenManager->clearStateBundle($state);
         throw new OpenIDConnectClientException('Unable to verify JWT claims');
     }
 
     /**
      * Handle the implicit flow which involves directly receiving tokens from the authorization response.
-     *
      * The implicit flow is a part of the OAuth 2.0 and OpenID Connect specifications, where tokens are returned directly to the client without an authorization code exchange.
      * This flow is typically used in single-page applications.
      *
      * @throws ConnectionException
-     * @throws OpenIDConnectClientException
+     * @throws OpenIDConnectClientException|InvalidArgumentException
+     * @throws JsonException
      */
     protected function handleImplicitFlow(): bool
     {
-        $idToken = $_REQUEST['id_token'];
-        $accessToken = $_REQUEST['access_token'] ?? null;
+        // Extract tokens from front-channel response
+        $idTokenRaw = $_REQUEST['id_token'] ?? null;
+        if (!is_string($idTokenRaw) || $idTokenRaw === '') {
+            throw new OpenIDConnectClientException('Invalid id_token');
+        }
+        $idToken = $idTokenRaw;
+        $accessTokenRaw = $_REQUEST['access_token'] ?? null;
+        $accessToken = is_string($accessTokenRaw) ? $accessTokenRaw : null;
 
-        if (! isset($_REQUEST['state']) || ($_REQUEST['state'] !== $this->tokenManager->getState())) {
+        // Validate state using the state-scoped bundle
+        $stateRaw = $_REQUEST['state'] ?? null;
+        if (!is_string($stateRaw) || $stateRaw === '') {
+            throw new OpenIDConnectClientException('Missing state');
+        }
+        $state = $stateRaw;
+        $bundle = $this->tokenManager->loadStateBundle($state);
+        if ($bundle === null) {
+            // Clear legacy state if present and abort
+            $this->tokenManager->unsetState();
             throw new OpenIDConnectClientException('Unable to determine state');
         }
+        // Restore nonce for claims verification
+        $this->tokenManager->setNonce($bundle['nonce']);
 
+        // Backwards-compat: clear legacy session state value
         $this->tokenManager->unsetState();
+
+        // Detect and handle JWE id_token
+        $idTokenHeaders = $this->jwtProcessor->decodeJWT($idToken);
+        if (isset($idTokenHeaders->enc)) {
+            $idToken = $this->handleJweResponse($idToken);
+        }
 
         /** @var object $claims */
         $claims = $this->jwtProcessor->decodeJWT($idToken, 1);
         $this->jwtProcessor->verifyJWTSignature($idToken, $this->getJwks());
 
+        // Persist tokens we received
         $this->tokenManager->setIdToken($idToken);
+        if ($accessToken !== null) {
+            $this->tokenManager->setAccessToken($accessToken);
+        }
 
-        if ($this->verifyJWTClaims($claims, $accessToken)) {
+        // Verify claims to use restored nonce and available access token (or empty string)
+        $tokenForClaims = $accessToken ?? '';
+        if ($this->verifyJWTClaims($claims, $tokenForClaims)) {
+            // Success: clear transient data and synthesise a tokenResponse-like structure
             $this->tokenManager->unsetNonce();
-            if ($accessToken) {
-                $this->tokenManager->setAccessToken($accessToken);
+            $this->tokenManager->clearStateBundle($state);
+            $tokenResponse = [
+                'id_token' => $idToken,
+            ];
+            if ($accessToken !== null) {
+                $tokenResponse['access_token'] = $accessToken;
             }
+            $this->tokenManager->setTokenResponse($tokenResponse);
             return true;
         }
 
+        // Failure: clear bundle and legacy state before throwing
+        $this->tokenManager->clearStateBundle($state);
         throw new OpenIDConnectClientException('Unable to verify JWT claims');
     }
 
@@ -236,6 +373,8 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      * @param string $code The authorization code received from the provider.
      * @return array The response containing the tokens (access token, refresh token, id token) in JSON format.
      * @throws OpenIDConnectClientException|ConnectionException If there is an error during the HTTP request.
+     * @throws InvalidArgumentException
+     * @throws JsonException
      */
     protected function requestTokens(string $code): array
     {
@@ -251,10 +390,22 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
 
         $headers = $this->prepareAuthHeaders();
 
-        $fetchToken = $this->httpClient->fetchViaPostMethod($tokenEndpoint, http_build_query($tokenParams), $headers);
+        // Include PKCE code_verifier when available
+        $codeVerifier = $this->tokenManager->getCodeVerifier();
+        if ($codeVerifier !== null && $codeVerifier !== '') {
+            $tokenParams['code_verifier'] = $codeVerifier;
+        }
+
+        // Ensure the code_verifier is always cleared regardless of transport outcome
+        try {
+            $fetchToken = $this->httpClient->fetchViaPostMethod($tokenEndpoint, http_build_query($tokenParams), $headers);
+        } finally {
+            // clean up PKCE secret as soon as the token request attempt finishes
+            $this->tokenManager->unsetCodeVerifier();
+        }
 
         /** @var array $response */
-        $response = json_decode($fetchToken, true);
+        $response = json_decode($fetchToken, true, 512, JSON_THROW_ON_ERROR);
         return $response;
     }
 
@@ -264,6 +415,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      * redirect URI, client ID, nonce, state, and scope. It then redirects the user to the authorization endpoint.
      *
      * @throws Exception
+     * @throws InvalidArgumentException
      */
     protected function requestAuthorization(): void
     {
@@ -285,7 +437,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
             throw new OpenIDConnectClientException('Redirect URL is not set');
         }
 
-        if ($this->config->getClientID() === null || $this->config->getClientID() === '') {
+        if ($this->config->getClientID() === '') {
             throw new OpenIDConnectClientException('Client ID is not set');
         }
 
@@ -293,19 +445,27 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
             throw new OpenIDConnectClientException('Scope is not set');
         }
 
+        // Determine response_type based on configuration; default to authorization code flow
+        $configuredResponseType = $this->config->getProviderConfigValue('response_type', 'code');
+        if (is_array($configuredResponseType)) {
+            $configuredResponseType = implode(' ', $configuredResponseType);
+        }
+        // $configuredResponseType is a string after the normalisation above; ensure non-empty
+        $responseType = $configuredResponseType !== ''
+            ? $configuredResponseType
+            : 'code';
+
         $authParams = array_merge($this->config->getAuthParams(), [
-            'response_type' => 'code',
+            'response_type' => $responseType,
             'redirect_uri' => $this->config->getRedirectURL(),
             'client_id' => $this->config->getClientID(),
             'nonce' => $nonce,
             'state' => $state,
             'scope' => 'openid',
         ]);
-        if ($this->config->getScope() !== []) {
-            $authParams = array_merge($authParams, [
-                'scope' => implode(' ', array_unique(array_merge($this->config->getScope(), ['openid']))),
-            ]);
-        }
+        $authParams = array_merge($authParams, [
+            'scope' => implode(' ', array_unique(array_merge($this->config->getScope(), ['openid']))),
+        ]);
 
         // If the client supports Proof Key for Code Exchange (PKCE)
         $codeChallengeMethod = $this->jwtProcessor->getCodeChallengeMethod();
@@ -329,14 +489,14 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
                 $codeChallenge = $codeVerifier;
             }
 
-            $authParams['code_challenge'] = array_merge($authParams, [
-                'code_challenge' => $codeChallenge,
-                'code_challenge_method' => $codeChallenge,
-            ]);
+            $authParams['code_challenge'] = $codeChallenge;
+            $authParams['code_challenge_method'] = $codeChallengeMethod;
         }
         // $authEndpoint .= (!str_contains($authEndpoint, '?') ? '?' : '&') . http_build_query($authParams, '', '&', $this->config->getEncodingType());
-        $authEndpoint .= (strpos($authEndpoint, '?') === false ? '?' : '&') . http_build_query($authParams, '', '&', $this->config->getEncodingType());
-        // $authEndpoint .= '?' . http_build_query($authParams);
+        // Save state-scoped bundle to storage (covers cache with TTL)
+        $this->tokenManager->saveStateBundle($state, $nonce, $this->tokenManager->getCodeVerifier());
+
+        $authEndpoint .= (str_contains($authEndpoint, '?') ? '&' : '?') . http_build_query($authParams, '', '&', $this->config->getEncodingType());
         $this->tokenManager->commitSession();
         redirect()->to($authEndpoint)->send();
     }
@@ -365,13 +525,12 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
 
     /**
      * Retrieves the JSON Web Key Set (JWKS) from the OpenID Connect provider.
-     *
      * The JWKS is a set of public keys used to verify the signatures of JSON Web Tokens (JWTs).
      * This function sends a request to the JWKS URI specified in the OpenID Connect configuration,
      * decodes the response, and returns the JWKS as an array.
      *
      * @return array The JSON Web Key Set (JWKS) as an array.
-     * @throws OpenIDConnectClientException|ConnectionException If there is an error during the HTTP request.
+     * @throws OpenIDConnectClientException|ConnectionException|JsonException If there is an error during the HTTP request.
      */
     protected function getJwks(): array
     {
@@ -379,7 +538,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
         $jwksUri = $this->config->getProviderConfigValue('jwks_uri');
         $response = $this->httpClient->fetchViaGetMethod($jwksUri);
         /** @var array $fetchedJwks */
-        $fetchedJwks = json_decode($response, true);
+        $fetchedJwks = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
         return $fetchedJwks['keys'];
     }
 
@@ -489,6 +648,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
     /**
      * @throws OpenIDConnectClientException
      * @throws ConnectionException
+     * @throws JsonException
      */
     private function processResponse(string $response): object
     {
@@ -511,7 +671,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
         }
 
         /** @var object $responseObject */
-        $responseObject = json_decode($response, false);
+        $responseObject = json_decode($response, false, 512, JSON_THROW_ON_ERROR);
 
         return $responseObject;
     }
