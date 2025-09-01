@@ -41,7 +41,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      *
      * @param array $config The configuration array containing OpenID Connect settings such as
      *                      client_id, client_secret, provider URLs, scopes, and other authentication parameters.
-     * @return void
      * @throws OpenIDConnectClientException If the configuration is invalid or missing required parameters.
      */
     public function setConfig(array $config): void
@@ -58,7 +57,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      *
      * @param OpenIDConnectHttpClient $httpClient The HTTP client instance to use for OpenID Connect requests.
      *                                            This client handles the low-level HTTP communication with the provider.
-     * @return void
      */
     public function setHttpClient(OpenIDConnectHttpClient $httpClient): void
     {
@@ -75,7 +73,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      * @param OpenIDConnectTokenManager $tokenManager The token manager instance to use for token operations.
      *                                                This manager handles storage, retrieval, and validation of
      *                                                various tokens and state values required for secure authentication.
-     * @return void
      */
     public function setTokenManager(OpenIDConnectTokenManager $tokenManager): void
     {
@@ -93,7 +90,6 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
      *                                                This processor handles JWT decoding, signature verification,
      *                                                PKCE code challenge generation, and other cryptographic operations
      *                                                required for secure OpenID Connect authentication.
-     * @return void
      */
     public function setJwtProcessor(OpenIDConnectJWTProcessor $jwtProcessor): void
     {
@@ -421,15 +417,13 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
     {
         /** @var string $authEndpoint */
         $authEndpoint = $this->config->getProviderConfigValue('authorization_endpoint');
-        $this->tokenManager->setNonce($this->tokenManager->generateRandString());
-        $nonce = $this->tokenManager->getNonce();
-        if ($nonce === null || $nonce === '') {
+        // Generate nonce and state without persisting legacy session keys
+        $nonce = $this->tokenManager->generateRandString();
+        if ($nonce === '') {
             throw new OpenIDConnectClientException('Unable to generate nonce');
         }
-        $this->tokenManager->setState($this->tokenManager->generateRandString());
-        $state = $this->tokenManager->getState();
-
-        if ($state === null || $state === '') {
+        $state = $this->tokenManager->generateRandString();
+        if ($state === '') {
             throw new OpenIDConnectClientException('Unable to generate state');
         }
 
@@ -478,7 +472,7 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
             true
         )) {
             $codeVerifier = $this->tokenManager->generateRandString(64);
-            $this->tokenManager->setCodeVerifier($codeVerifier);
+            // Do not persist code_verifier in legacy session; store in a bundle only
             if (! empty($this->jwtProcessor->pkceSupportedAlgs()[$codeChallengeMethod])) {
                 $codeChallenge = Base64Helper::b64urlEncode(hash(
                     $this->jwtProcessor->pkceSupportedAlgs()[$codeChallengeMethod],
@@ -494,7 +488,11 @@ final class OpenIDConnectManager implements OpenIdConnectManagerContract
         }
         // $authEndpoint .= (!str_contains($authEndpoint, '?') ? '?' : '&') . http_build_query($authParams, '', '&', $this->config->getEncodingType());
         // Save state-scoped bundle to storage (covers cache with TTL)
-        $this->tokenManager->saveStateBundle($state, $nonce, $this->tokenManager->getCodeVerifier());
+        $this->tokenManager->saveStateBundle($state, $nonce, $codeVerifier ?? null);
+        // Optionally clear any legacy keys to avoid duplication
+        $this->tokenManager->unsetNonce();
+        $this->tokenManager->unsetState();
+        $this->tokenManager->unsetCodeVerifier();
 
         $authEndpoint .= (str_contains($authEndpoint, '?') ? '&' : '?') . http_build_query($authParams, '', '&', $this->config->getEncodingType());
         $this->tokenManager->commitSession();

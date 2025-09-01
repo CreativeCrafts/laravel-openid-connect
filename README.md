@@ -99,6 +99,25 @@ Error Handling:
 If the configuration for the provider is missing or misconfigured, the package throws an InvalidProviderConfigurationException. Ensure that all necessary configurations, such as the issuer URL, client ID, and client secret, are correctly set.
 ```
 
+## State and session management
+
+- This package uses a state-scoped bundle stored in session or cache as the single source of truth for transient values (nonce and PKCE code_verifier). Direct per-key usage (e.g. separate nonce/state keys) is deprecated; rely on saveStateBundle()/loadStateBundle() behavior.
+- Multiple outstanding authorizations per session are supported by scoping bundles to the state value.
+- On successful or failed callback processing, the bundle is cleared and a short-lived tombstone is written to prevent replay of the same state.
+- When using session storage, ensure cookies are configured with Secure, HttpOnly, and an appropriate SameSite setting for your deployment.
+
+### Potential pitfalls and guidance
+- Regenerating the session ID mid-flow: If your app regenerates IDs aggressively (e.g., on each request), the sid check will reject the callback. Consider deferring regeneration until after OIDC completes, or disable mid-request regeneration for the callback route.
+- Distributed systems: When using cache storage (`OPENID_CONNECT_STORAGE=cache`), ensure all app instances point to the same cache backend and share a common prefix (`OPENID_CONNECT_KEY_PREFIX`). Also ensure clock skew is tolerable and cache TTLs are sufficient across nodes.
+- Long consent screens: Increase `OPENID_CONNECT_CACHE_TTL` when using cache storage, or prefer session storage if your session persistence is more reliable during long user interactions.
+- Legacy keys: Direct usage of `nonce`/`state`/`code_verifier` per-key in storage is deprecated. The manager still cleans legacy keys for backwards compatibility, but your integration should rely on the state-bundled APIs.
+
+### Storage configuration quick reference
+- OPENID_CONNECT_STORAGE: `session` (default) | `cache` | `none`
+- OPENID_CONNECT_KEY_PREFIX: Key prefix for both session and cache storages.
+- OPENID_CONNECT_CACHE_STORE: Named Laravel cache store to use when storage is `cache`.
+- OPENID_CONNECT_CACHE_TTL: Integer seconds; increase for longer flows or set to null in config to store forever (not recommended for security).
+
 ## Testing
 
 ```bash
