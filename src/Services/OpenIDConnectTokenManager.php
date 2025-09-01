@@ -287,7 +287,8 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
     }
 
     /**
-     * Generates a random string of 32 characters using the bin2hex function and random_bytes function.
+     * Generates a random string of 32 characters using the bin hex function and random_bytes function.
+     *
      * @param int<1, max> $randomNumber The number of random bytes to generate. Default is 16.
      * @return string A random string of 32 characters.
      * @throws Exception If the random_bytes function fails to generate the required number of bytes.
