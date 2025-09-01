@@ -1,3 +1,26 @@
+### 1.0.2 - 2025-09-01
+
+Added
+- Bind state bundles to the current session via a session-bound sid to prevent cross-session reuse.
+- Add replay protection by writing a short-lived tombstone after a state bundle is consumed.
+
+Changed
+- The manager no longer persists legacy session keys (nonce, state, code_verifier); values are managed exclusively via state-scoped bundles and legacy keys are cleared to avoid duplication.
+- When PKCE is used, code_verifier is only stored inside the state bundle (not in legacy session storage).
+
+Deprecated
+- TokenManager legacy per-key methods (set/getNonce, set/getState, set/getCodeVerifier) are now deprecated in favor of saveStateBundle()/loadStateBundle(). They remain for backward compatibility.
+
+Security
+- Enforce session binding when loading state bundles; reject mismatched sessions.
+- Reject callback processing when a consumed state is detected (tombstoned), preventing replay attacks.
+
+Docs
+- Expand README with guidance on state/session management, distributed cache considerations, and common pitfalls.
+
+Tests
+- Add end-to-end flow and TokenManager session-binding tests to cover the new behavior.
+
 ### 0.0.3 - 2024-10-21
 - Initial Release
 
