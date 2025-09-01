@@ -16,6 +16,8 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Config;
 use JsonException;
 use Psr\SimpleCache\InvalidArgumentException;
+use DateInterval;
+use DateTimeInterface;
 
 final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContract
 {
@@ -54,22 +56,27 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
             return;
         }
 
-        // Resolve storage from Laravel config if available, else default to stateless (null storage)
-        $storageRaw = function_exists('config') ? Config::string(key: 'openid-connect.storage') : null;
-        $storageDriver = is_string($storageRaw) ? $storageRaw : 'session';
-        $prefixRaw = function_exists('config') ? Config::string(key: 'openid-connect.session_key_prefix') : null;
-        $prefix = is_string($prefixRaw) ? $prefixRaw : 'openid_connect_';
+        // Resolve storage from Laravel config if available, else default to sensible values
+        $storageRaw = function_exists('config') ? config('openid-connect.storage') : null;
+        $storageDriver = is_string($storageRaw) && $storageRaw !== '' ? $storageRaw : 'session';
+        $prefixRaw = function_exists('config') ? config('openid-connect.session_key_prefix') : null;
+        $prefix = is_string($prefixRaw) && $prefixRaw !== '' ? $prefixRaw : 'openid_connect_';
 
         if ($storageDriver === 'cache') {
             $instance = class_exists(Container::class) ? Container::getInstance() : null;
             if ($instance instanceof Container) {
                 /** @var Factory $cacheFactory */
                 $cacheFactory = $instance->make('cache');
-                $storeNameRaw = function_exists('config') ? Config::string(key: 'openid-connect.cache_store') : null;
-                $storeName = is_string($storeNameRaw) ? $storeNameRaw : null;
-                $cacheRepo = $storeName !== null && $storeName !== '' && $storeName !== '0' ? $cacheFactory->store($storeName) : $instance->make('cache.store');
-                $rawTtl = function_exists('config') ? Config::integer(key: 'openid-connect.cache_ttl', default: 300) : null;
-                $ttl = is_int($rawTtl) ? $rawTtl : null;
+                $storeNameRaw = function_exists('config') ? config('openid-connect.cache_store') : null;
+                $storeName = is_string($storeNameRaw) && $storeNameRaw !== '' ? $storeNameRaw : null;
+                $cacheRepo = $storeName !== null ? $cacheFactory->store($storeName) : $instance->make('cache.store');
+                $rawTtl = function_exists('config') ? config('openid-connect.cache_ttl', 300) : null;
+                $ttl = null;
+                if ($rawTtl instanceof DateInterval || $rawTtl instanceof DateTimeInterface) {
+                    $ttl = $rawTtl;
+                } elseif (is_numeric($rawTtl)) {
+                    $ttl = (int) $rawTtl;
+                }
                 $this->storage = new CacheTokenStorage($cacheRepo, $prefix, $ttl);
                 return;
             }
@@ -362,7 +369,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
         $payload = json_encode([
             'nonce' => $nonce,
             'code_verifier' => $codeVerifier,
-            'sid' => $this->computeSid(),
+            'sid' => $this->computeSid($state),
         ], JSON_THROW_ON_ERROR);
         $this->storage->put(self::STATE_BUNDLE_PREFIX . $state, $payload);
     }
@@ -389,7 +396,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
             if (is_array($data) && isset($data['nonce'])) {
                 // If sid is present, enforce that it matches the current session context
                 if (array_key_exists('sid', $data) && $data['sid'] !== null) {
-                    $currentSid = $this->computeSid();
+                    $currentSid = $this->computeSid($state);
                     if (!is_string($currentSid) || !hash_equals((string)$data['sid'], $currentSid)) {
                         return null;
                     }
@@ -433,21 +440,28 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
         $this->storage->forget(self::STATE_BUNDLE_PREFIX . $state);
         $this->storage->put(self::STATE_TOMBSTONE_PREFIX . $state, '1');
     }
+
     /**
-     * Compute a session-bound identifier (sid) using HMAC(app.key, session_id).
-     * This avoids exposing the raw session ID while binding bundles to a user session.
+     * Computes a session identifier (SID) by creating an HMAC hash of the state parameter.
+     * This method generates a cryptographically secure session identifier by hashing the provided
+     * state value with the application key using HMAC-SHA256. The SID is used to bind state bundles
+     * to specific session contexts, preventing cross-session state reuse attacks. If the Laravel
+     * config function is not available or no application key is configured, the method returns null
+     * to indicate that session binding is not possible.
+     *
+     * @param string $state The state parameter to be hashed. This is typically a random string
+     *                      generated during the OAuth/OpenID Connect authorisation flow.
+     * @return string|null They computed session identifier as a hexadecimal HMAC-SHA256 hash,
+     *                     or null if the config function is unavailable or no application key
+     *                     is configured in the Laravel application.
      */
-    private function computeSid(): ?string
+    private function computeSid(string $state): ?string
     {
-        if (!function_exists('config') || !function_exists('session')) {
-            return null; // In non-Laravel contexts, skip binding
-        }
-        $sessionId = session()->getId();
-        // Session::getId() returns string in Laravel; guard only against empty IDs
-        if ($sessionId === '') {
+        if (!function_exists('config')) {
             return null;
         }
-        $appKey = Config::get('app.key', '');
+
+        $appKey = function_exists('config') ? config('app.key', '') : '';
         if (!is_string($appKey) || $appKey === '') {
             return null;
         }
@@ -455,6 +469,6 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
             $decoded = base64_decode(substr($appKey, 7), true);
             $appKey = $decoded !== false ? $decoded : substr($appKey, 7);
         }
-        return hash_hmac('sha256', $sessionId, $appKey);
+        return hash_hmac('sha256', $state, $appKey);
     }
 }

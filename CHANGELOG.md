@@ -1,5 +1,17 @@
-### 1.0.2 - 2025-09-01
+### 1.0.3 - 2025-09-01
+feat (token-manager): bind state via app-key HMAC; add replay tombstones
 
+- Replace session-ID–based SID with HMAC of the state using app.key and enforce
+  it when reading bundles to prevent cross-session state reuse.
+- Write a short-lived tombstone after a state bundle is consumed to mitigate
+  replay attempts.
+- Accept cache_ttl as int|DateInterval|DateTimeInterface and pass through to the
+  cache repo; apply sensible defaults for storage driver, cache store, and key
+  prefix.
+- Use config() helper instead of Config::string/integer for Laravel 10–12
+  compatibility.
+
+### 1.0.2 - 2025-09-01
 Added
 - Bind state bundles to the current session via a session-bound sid to prevent cross-session reuse.
 - Add replay protection by writing a short-lived tombstone after a state bundle is consumed.

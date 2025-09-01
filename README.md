@@ -121,8 +121,7 @@ If the configuration for the provider is missing or misconfigured, the package t
 ## Testing
 
 ```bash
-This package is built with a focus on quality and reliability. I am currently working on adding more tests to ensure that the package works as expected.
-
+This package is built with a focus on quality and reliability.
 
 To run the tests, use the following command:
 ./vendor/bin/pest
