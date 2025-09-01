@@ -52,3 +52,7 @@ BREAKING CHANGE
 - Session key names are normalised (nonce/state/code_verifier) and managed through a pluggable storage layer
 - getClientID/getClientSecret are now non-nullable
 - Base64Helper::base64urlDecode signature now returns string
+
+### 1.0.1 - 2025-09-01
+
+Chore: clean up and improve documentation
