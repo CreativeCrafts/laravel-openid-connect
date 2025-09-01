@@ -5,11 +5,23 @@ declare(strict_types=1);
 namespace CreativeCrafts\LaravelOpenidConnect\Services;
 
 use CreativeCrafts\LaravelOpenidConnect\Contracts\OpenIDConnectTokenManagerContract;
-use CreativeCrafts\LaravelOpenidConnect\Exceptions\OpenIDConnectClientException;
+use CreativeCrafts\LaravelOpenidConnect\Contracts\TokenStorageContract;
+use CreativeCrafts\LaravelOpenidConnect\Storage\CacheTokenStorage;
+use CreativeCrafts\LaravelOpenidConnect\Storage\NullTokenStorage;
+use CreativeCrafts\LaravelOpenidConnect\Storage\SessionTokenStorage;
 use Exception;
+use Illuminate\Container\Container;
+use Illuminate\Contracts\Cache\Factory;
+use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Support\Facades\Config;
+use JsonException;
+use Psr\SimpleCache\InvalidArgumentException;
 
 final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContract
 {
+    private const STATE_BUNDLE_PREFIX = 'oidc:state:';
+    private TokenStorageContract $storage;
+
     // @pest-mutate-ignore
     private ?string $accessToken = null;
 
@@ -21,6 +33,59 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
 
     // @pest-mutate-ignore
     private ?array $tokenResponse = null;
+
+    /**
+     * Initialises the OpenID Connect Token Manager with the specified storage implementation.
+     * This constructor sets up the token storage mechanism for the OpenID Connect session management.
+     * If no storage is provided, it automatically resolves the storage type from Laravel configuration
+     * or falls back to sensible defaults. Supported storage types include cache, session, and null (stateless).
+     *
+     * @param TokenStorageContract|null $storage Optional token storage implementation. If null, the storage
+     *                                          will be automatically resolved from Laravel configuration.
+     *                                          Defaults to session storage if Laravel is available,
+     *                                          otherwise falls back to null storage (stateless).
+     * @throws BindingResolutionException If there's an issue resolving dependencies from the Laravel container.
+     */
+    public function __construct(?TokenStorageContract $storage = null)
+    {
+        if ($storage instanceof TokenStorageContract) {
+            $this->storage = $storage;
+            return;
+        }
+
+        // Resolve storage from Laravel config if available, else default to stateless (null storage)
+        $storageRaw = function_exists('config') ? Config::string(key: 'openid-connect.storage') : null;
+        $storageDriver = is_string($storageRaw) ? $storageRaw : 'session';
+        $prefixRaw = function_exists('config') ? Config::string(key: 'openid-connect.session_key_prefix') : null;
+        $prefix = is_string($prefixRaw) ? $prefixRaw : 'openid_connect_';
+
+        if ($storageDriver === 'cache') {
+            $instance = class_exists(Container::class) ? Container::getInstance() : null;
+            if ($instance instanceof Container) {
+                /** @var Factory $cacheFactory */
+                $cacheFactory = $instance->make('cache');
+                $storeNameRaw = function_exists('config') ? Config::string(key: 'openid-connect.cache_store') : null;
+                $storeName = is_string($storeNameRaw) ? $storeNameRaw : null;
+                $cacheRepo = $storeName !== null && $storeName !== '' && $storeName !== '0' ? $cacheFactory->store($storeName) : $instance->make('cache.store');
+                $rawTtl = function_exists('config') ? Config::integer(key: 'openid-connect.cache_ttl', default: 300) : null;
+                $ttl = is_int($rawTtl) ? $rawTtl : null;
+                $this->storage = new CacheTokenStorage($cacheRepo, $prefix, $ttl);
+                return;
+            }
+        }
+
+        if ($storageDriver === 'session') {
+            $instance = class_exists(Container::class) ? Container::getInstance() : null;
+            if ($instance instanceof Container && $instance->bound('session')) {
+                $session = $instance->make('session');
+                $this->storage = new SessionTokenStorage($session, $prefix);
+                return;
+            }
+        }
+
+        // Fallback to null storage (stateless)
+        $this->storage = new NullTokenStorage();
+    }
 
     /**
      * Sets the access token for the OpenID Connect session.
@@ -47,7 +112,6 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      *
      * @param string|null $refreshToken The refresh token to be set. If null, the refresh token will be cleared.
      *
-     * @throws Exception If the random_bytes function fails to generate the required number of bytes for the refresh token.
      */
     public function setRefreshToken(?string $refreshToken): void
     {
@@ -68,7 +132,6 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      * Sets the ID token for the OpenID Connect session.
      *
      * @param string $idToken The ID token to be set. This token is used to authenticate the user and provide user information.
-     * @throws OpenIDConnectClientException
      */
     public function setIdToken(string $idToken): void
     {
@@ -120,8 +183,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function commitSession(): void
     {
-        $this->startSession();
-        session_write_close();
+        $this->storage->commit();
     }
 
     /**
@@ -135,27 +197,22 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function setSessionKey(string $key, string $value): void
     {
-        $this->startSession();
-        $_SESSION[$key] = $value;
+        $this->storage->put($key, $value);
     }
 
     /**
      * Retrieves a session key-value pair.
-     *
      * This method retrieves a value from the PHP session using the provided key.
      * If the key exists and its value is not empty, the method returns the value.
      * Otherwise, it returns null.
      *
      * @param string $key The key to be used for retrieving the value from the session.
      * @return string|null The value associated with the given key in the session, or null if the key does not exist or its value is empty.
+     * @throws InvalidArgumentException
      */
     public function getSessionKey(string $key): ?string
     {
-        $this->startSession();
-        if (array_key_exists($key, $_SESSION) && ! empty($_SESSION[$key])) {
-            return $_SESSION[$key];
-        }
-        return null;
+        return $this->storage->get($key);
     }
 
     /**
@@ -168,8 +225,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function unsetSessionKey(string $key): void
     {
-        $this->startSession();
-        unset($_SESSION[$key]);
+        $this->storage->forget($key);
     }
 
     /**
@@ -182,20 +238,20 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function setNonce(string $nonce): void
     {
-        $this->setSessionKey('openid_connect_nonce', $nonce);
+        $this->setSessionKey('nonce', $nonce);
     }
 
     /**
      * Retrieves the nonce value for the OpenID Connect session.
-     *
-     * The nonce is a random string that is used to prevent replay attacks. It is generated by the
+     * The nonce is a random string used to prevent replay attacks. It is generated by the
      * `generateRandString` method and stored in the PHP session.
      *
      * @return string|null The nonce value stored in the session, or null if it is not set.
+     * @throws InvalidArgumentException
      */
     public function getNonce(): ?string
     {
-        return $this->getSessionKey('openid_connect_nonce');
+        return $this->getSessionKey('nonce');
     }
 
     /**
@@ -207,7 +263,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function unsetNonce(): void
     {
-        $this->unsetSessionKey('openid_connect_nonce');
+        $this->unsetSessionKey('nonce');
     }
 
     /**
@@ -220,20 +276,20 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function setState(string $state): void
     {
-        $this->setSessionKey('openid_connect_state', $state);
+        $this->setSessionKey('state', $state);
     }
 
     /**
      * Retrieves the state value for the OpenID Connect session.
-     *
      * The state value is used to maintain the state between the client and the server during the authorization process.
      * It is generated by the `generateRandString` method and stored in the PHP session.
      *
      * @return string|null The state value stored in the session, or null if it is not set.
+     * @throws InvalidArgumentException
      */
     public function getState(): ?string
     {
-        return $this->getSessionKey('openid_connect_state');
+        return $this->getSessionKey('state');
     }
 
     /**
@@ -245,7 +301,7 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function unsetState(): void
     {
-        $this->unsetSessionKey('openid_connect_state');
+        $this->unsetSessionKey('state');
     }
 
     /**
@@ -258,20 +314,20 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function setCodeVerifier(string $codeVerifier): void
     {
-        $this->setSessionKey('openid_connect_code_verifier', $codeVerifier);
+        $this->setSessionKey('code_verifier', $codeVerifier);
     }
 
     /**
      * Retrieves the code verifier for the OpenID Connect session.
-     *
      * The code verifier is a random string used in the authorization code flow to prevent CSRF attacks.
      * It is generated by the `generateRandString` method and stored in the PHP session.
      *
      * @return string|null The code verifier stored in the session, or null if it is not set.
+     * @throws InvalidArgumentException
      */
     public function getCodeVerifier(): ?string
     {
-        return $this->getSessionKey('openid_connect_code_verifier');
+        return $this->getSessionKey('code_verifier');
     }
 
     /**
@@ -283,11 +339,12 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
      */
     public function unsetCodeVerifier(): void
     {
-        $this->unsetSessionKey('openid_connect_code_verifier');
+        $this->unsetSessionKey('code_verifier');
     }
 
     /**
-     * Generates a random string of 32 characters using the bin2hex function and random_bytes function.
+     * Generates a random string of 32 characters using the bin hex function and random_bytes function.
+     *
      * @param int<1, max> $randomNumber The number of random bytes to generate. Default is 16.
      * @return string A random string of 32 characters.
      * @throws Exception If the random_bytes function fails to generate the required number of bytes.
@@ -297,10 +354,48 @@ final class OpenIDConnectTokenManager implements OpenIDConnectTokenManagerContra
         return bin2hex(random_bytes($randomNumber));
     }
 
-    protected function startSession(): void
+    /**
+     * Save a transient bundle scoped by state containing nonce and optional code_verifier.
+     *
+     * @throws JsonException
+     */
+    public function saveStateBundle(string $state, string $nonce, ?string $codeVerifier = null): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        $payload = json_encode([
+            'nonce' => $nonce,
+            'code_verifier' => $codeVerifier,
+        ], JSON_THROW_ON_ERROR);
+        $this->storage->put(self::STATE_BUNDLE_PREFIX . $state, $payload);
+    }
+
+    /**
+     * Load a state-scoped transient bundle (nonce, code_verifier).
+     *
+     * @return array|null :?string}|null
+     * @throws InvalidArgumentException
+     * @throws JsonException
+     */
+    public function loadStateBundle(string $state): ?array
+    {
+        $raw = $this->storage->get(self::STATE_BUNDLE_PREFIX . $state);
+        if (!is_string($raw)) {
+            return null;
         }
+        $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data) || !isset($data['nonce'])) {
+            return null;
+        }
+        return [
+            'nonce' => fluent($data)->string(key: 'nonce')->value(),
+            'code_verifier' => array_key_exists('code_verifier', $data) && $data['code_verifier'] !== null ? (string)$data['code_verifier'] : null,
+        ];
+    }
+
+    /**
+     * Clear the state-scoped bundle after it has been used.
+     */
+    public function clearStateBundle(string $state): void
+    {
+        $this->storage->forget(self::STATE_BUNDLE_PREFIX . $state);
     }
 }

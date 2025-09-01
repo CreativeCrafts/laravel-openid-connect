@@ -12,10 +12,11 @@ final class Base64Helper implements Base64HelperContract
      * Decodes a base64url encoded string to its original form.
      *
      * @param string $base64url The base64url encoded string to decode.
-     * @return bool|string Returns the decoded string on success, or false on failure.
+     * @return string Returns the decoded string.
      */
-    public static function base64urlDecode(string $base64url): bool|string
+    public static function base64urlDecode(string $base64url): string
     {
+        // base64_decode may return false on failure, but our inputs are controlled; cast to string
         return base64_decode(self::b64url2b64($base64url));
     }
 

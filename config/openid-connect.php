@@ -9,6 +9,17 @@ declare(strict_types=1);
  */
 
 return [
+    // Storage configuration for OIDC transient values (state, nonce, code_verifier)
+    // Options: 'session' (default), 'cache', 'none' (stateless)
+    'storage' => env('OPENID_CONNECT_STORAGE', 'session'),
+
+    // Prefix applied to keys when storing in session or cache
+    'session_key_prefix' => env('OPENID_CONNECT_KEY_PREFIX', 'openid_connect_'),
+
+    // When storage = cache, you can specify cache store and TTL
+    // null TTL means store forever
+    'cache_store' => env('OPENID_CONNECT_CACHE_STORE', ''),
+    'cache_ttl' => env('OPENID_CONNECT_CACHE_TTL', 300),
     /** The default authentication provider to be used. if a provider is not specified */
     'default_provider' => env('OPENID_CONNECT_DEFAULT_PROVIDER', ''),
     /** The default redirect URL to be used. if a provider redirect url is not provided. */

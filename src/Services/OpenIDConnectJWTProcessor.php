@@ -239,7 +239,9 @@ final class OpenIDConnectJWTProcessor implements OpenIDConnectJWTProcessorContra
         }
 
         if (isset($currentHeader['kid'])) {
-            throw new OpenIDConnectClientException('Unable to find a key for (algorithm, kid):' . $currentHeader['alg'] . ', ' . $currentHeader['kid'] . ')');
+            $alg = isset($currentHeader['alg']) && is_string($currentHeader['alg']) ? $currentHeader['alg'] : '';
+            $kid = is_string($currentHeader['kid']) ? $currentHeader['kid'] : '';
+            throw new OpenIDConnectClientException('Unable to find a key for (algorithm, kid):' . $alg . ', ' . $kid . ')');
         }
 
         throw new OpenIDConnectClientException('Unable to find a key for RSA');

@@ -30,3 +30,7 @@ phpstan.neon
 testbench.yaml
 /docs
 /coverage
+
+WARP.md
+.junie
+docs
